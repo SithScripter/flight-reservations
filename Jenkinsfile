@@ -1,37 +1,57 @@
-pipeline{
-
+pipeline {
     agent any
 
-    stages{
+    environment {
+        IMAGE_NAME = "gaumji19/selenium"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
+        DOCKER_HUB = credentials('dockerhub-creds')
+    }
 
-        stage('Build Jar'){
-            steps(){
-                bat 'mvn clean package -DskipTests'
+    stages {
+        stage('Build JAR') {
+            steps {
+                sh 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Build Image'){
-            steps(){
-                bat 'docker build -t=gaumji19/selenium:latest .'
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${IMAGE_NAME}:latest ."
             }
         }
 
-        stage('push image'){
-            environment{
-                //assuming you have stored credentials with this name
-                DOCKER_HUB = credentials('dockerhub-creds')
+        stage('Push to Docker Hub') {
+            steps {
+                sh '''
+                    echo "$DOCKER_HUB_PSW" | docker login -u "$DOCKER_HUB_USR" --password-stdin
+                    docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
             }
-            steps(){
-                bat 'echo %DOCKER_HUB_PSW% | docker login -u %DOCKER_HUB_USR% --password-stdin'
-                bat "docker tag gaumji19/selenium:latest gaumji19/selenium:${env.BUILD_NUMBER}"
-                bat "docker push gaumji19/selenium:${env.BUILD_NUMBER}"
+        }
+
+        stage('Run Tests with Allure') {
+            steps {
+                sh '''
+                    echo "Running Tests with Maven..."
+                    mvn clean test \
+                      -Dbrowser=chrome \
+                      -DsuiteXmlFile=test-suites/flight-reservation.xml
+                '''
+            }
+        }
+
+        stage('Allure Report') {
+            steps {
+                allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
             }
         }
     }
+
     post {
         always {
-            bat "docker logout"
+            sh 'docker logout || true'
+            archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
         }
     }
-
 }
