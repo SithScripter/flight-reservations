@@ -1,0 +1,11 @@
+{
+  "firstname": "kevin",
+  "lastname": "depp",
+  "email": "test@test4.com",
+  "password": "temp4321",
+  "street": "19th B Street",
+  "city": "Dubai",
+  "zip": "23432",
+  "passengersCount": "4",
+  "expectedPrice": "$2338 USD"
+}

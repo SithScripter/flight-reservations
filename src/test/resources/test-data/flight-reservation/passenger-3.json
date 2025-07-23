@@ -1,0 +1,11 @@
+{
+  "firstname": "eric",
+  "lastname": "clark",
+  "email": "test@test3.com",
+  "password": "temp4321",
+  "street": "19th B Street",
+  "city": "Dubai",
+  "zip": "23432",
+  "passengersCount": "3",
+  "expectedPrice": "$1753 USD"
+}

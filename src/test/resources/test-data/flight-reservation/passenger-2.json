@@ -1,0 +1,11 @@
+{
+  "firstname": "stacy",
+  "lastname": "smith",
+  "email": "test@test2.com",
+  "password": "temp4321",
+  "street": "19th B Street",
+  "city": "Dubai",
+  "zip": "23432",
+  "passengersCount": "2",
+  "expectedPrice": "$1169 USD"
+}
