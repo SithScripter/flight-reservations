@@ -78,5 +78,5 @@ java -cp 'libs/*' \
 
 #below is optional-used it for debugging test results as output directory in local was empty
 # Debug - Check if results are generated in the expected directory
-echo "Checking output directory content..."
-ls -l /home/selenium-docker/test-output
+echo "Checking Allure results in /home/flight-reservations/target/allure-results:"
+ls -l /home/flight-reservations/target/allure-results

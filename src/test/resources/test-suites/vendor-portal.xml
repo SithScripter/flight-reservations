@@ -1,18 +1,27 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.1.dtd" >
 <suite name="Vendor-Portal" parallel="tests" thread-count="3">
-    <test name="user sam">
+    <listeners>
+        <listener class-name="com.gaumji.listener.TestListener"/>
+    </listeners>
+
+    <test name="user sam - chrome">
+        <parameter name="browser" value="chrome"/>
         <parameter name="testDataPath" value="test-data/vendor-portal/sam.json"/>
         <classes>
             <class name="com.gaumji.tests.vendorportal.VendorPortalTest"/>
         </classes>
     </test>
-    <test name="user mike">
+
+    <test name="user mike - firefox">
+        <parameter name="browser" value="firefox"/>
         <parameter name="testDataPath" value="test-data/vendor-portal/mike.json"/>
         <classes>
             <class name="com.gaumji.tests.vendorportal.VendorPortalTest"/>
         </classes>
     </test>
-    <test name="user john">
+
+    <test name="user john - chrome">
+        <parameter name="browser" value="chrome"/>
         <parameter name="testDataPath" value="test-data/vendor-portal/john.json"/>
         <classes>
             <class name="com.gaumji.tests.vendorportal.VendorPortalTest"/>

@@ -17,7 +17,7 @@ public abstract class AbstractPage {
         PageFactory.initElements(driver, this);
     }
 
+    // Subclasses must override this
     public abstract boolean isAt();
-
 
 }

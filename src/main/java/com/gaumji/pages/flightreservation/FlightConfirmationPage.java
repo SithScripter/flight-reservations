@@ -1,6 +1,7 @@
 package com.gaumji.pages.flightreservation;
 
 import com.gaumji.pages.AbstractPage;
+import io.qameta.allure.Step;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
@@ -19,21 +20,29 @@ public class FlightConfirmationPage extends AbstractPage {
     private WebElement totalPriceElement;
 
     public FlightConfirmationPage(WebDriver driver) {
-
         super(driver);
     }
 
     @Override
+    @Step("Check if Flight Confirmation Page is displayed")
     public boolean isAt() {
         this.wait.until(ExpectedConditions.visibilityOf(this.flightConfirmationElement));
-        return this.flightConfirmationElement.isDisplayed();
+        boolean isDisplayed = this.flightConfirmationElement.isDisplayed();
+        log.info("Flight Confirmation Page displayed: {}", isDisplayed);
+        return isDisplayed;
     }
 
-    public String getPrice(){
+    @Step("Get flight confirmation number")
+    public String getFlightConfirmationNumber() {
         String confirmation = this.flightConfirmationElement.getText();
+        log.info("Flight Confirmation #: {}", confirmation);
+        return confirmation;
+    }
+
+    @Step("Get total flight price")
+    public String getPrice() {
         String price = this.totalPriceElement.getText();
-        log.info("Flight Confirmation# : {}", confirmation);
-        log.info("Total Price : {}", price);
+        log.info("Total Price: {}", price);
         return price;
     }
 }

@@ -1,10 +1,11 @@
 FROM bellsoft/liberica-openjdk-alpine:21.0.6
 
 # Install curl jq
-RUN apk add curl jq
+#RUN apk add curl jq
+RUN apk add --no-cache curl jq dos2unix
 
 # workspace
-WORKDIR /home/selenium-docker
+WORKDIR /home/flight-reservations
 
 # Add the required files to run the test
 ADD target/docker-resources ./
@@ -35,7 +36,7 @@ ADD runner.sh runner.sh
 #ENTRYPOINT java -cp 'libs/*' -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=${HUB_HOST} -Dbrowser=${BROWSER} org.testng.TestNG -threadcount ${THREAD_COUNT} test-suites/${TEST_SUITE}
 
 #if any issue with runner.sh in windows then use below
-# Fix for windows
+# Fix for Windows CRLF issues (required on Windows hosts)
 RUN dos2unix runner.sh
 
 #start the runner

@@ -50,8 +50,12 @@ pipeline {
 
     post {
         always {
-            sh 'docker logout || true'
-            archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
+        script {
+            node {
+                sh 'docker logout || true'
+                archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
+            }
         }
     }
+}
 }

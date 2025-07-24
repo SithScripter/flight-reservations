@@ -1,11 +1,11 @@
 package com.gaumji.pages.vendorportal;
 
 import com.gaumji.pages.AbstractPage;
+import io.qameta.allure.Step;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,48 +45,70 @@ public class DashboardPage extends AbstractPage {
     }
 
     @Override
+    @Step("Verifying Dashboard Page is loaded")
     public boolean isAt() {
         this.wait.until(ExpectedConditions.visibilityOf(monthlyEarningElement));
-        return this.monthlyEarningElement.isDisplayed();
+        boolean isDisplayed = this.monthlyEarningElement.isDisplayed();
+        log.info("Dashboard loaded: {}", isDisplayed);
+        return isDisplayed;
     }
 
-    public String getMonthlyEarning(){
-       return this.monthlyEarningElement.getText();
+    @Step("Fetching Monthly Earning")
+    public String getMonthlyEarning() {
+        String value = this.monthlyEarningElement.getText();
+        log.info("Monthly Earning: {}", value);
+        return value;
     }
 
-    public String getAnnualEarning(){
-        return this.annualEarningElement.getText();
+    @Step("Fetching Annual Earning")
+    public String getAnnualEarning() {
+        String value = this.annualEarningElement.getText();
+        log.info("Annual Earning: {}", value);
+        return value;
     }
 
-    public String getProfitMargin(){
-        return this.profitMarginElement.getText();
+    @Step("Fetching Profit Margin")
+    public String getProfitMargin() {
+        String value = this.profitMarginElement.getText();
+        log.info("Profit Margin: {}", value);
+        return value;
     }
 
-    public String getAvailableInventory(){
-        return this.availableInventoryElement.getText();
+    @Step("Fetching Available Inventory")
+    public String getAvailableInventory() {
+        String value = this.availableInventoryElement.getText();
+        log.info("Available Inventory: {}", value);
+        return value;
     }
 
-    public String getSearchResultsCount(){
-        return this.searchResultsCountElement.getText();
+    @Step("Getting search results count text")
+    public String getSearchResultsCount() {
+        String value = this.searchResultsCountElement.getText();
+        log.info("Search Result Count (raw): {}", value);
+        return value;
     }
 
-    public void searchOrderHistory(String searchKeyword){
+    @Step("Searching Order History with keyword: {searchKeyword}")
+    public void searchOrderHistory(String searchKeyword) {
+        log.info("Searching for keyword: {}", searchKeyword);
         this.searchInput.sendKeys(searchKeyword);
     }
 
-    public int getResultsCount(){
+    @Step("Extracting actual result count from text")
+    public int getResultsCount() {
         String resultsCountText = this.searchResultsCountElement.getText();
         String[] arr = resultsCountText.split(" ");
         int count = Integer.parseInt(arr[5]);
-        log.info("Results count: {}", count);
+        log.info("Parsed Results Count: {}", count);
         return count;
     }
 
-    public void logout(){
+    @Step("Logging out from Dashboard")
+    public void logout() {
+        log.info("Logging out...");
         this.profilePictureElement.click();
         this.logoutLink.click();
         this.wait.until(ExpectedConditions.visibilityOf(modalLogoutButton));
         this.modalLogoutButton.click();
     }
-
 }
