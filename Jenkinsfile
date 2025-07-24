@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "gaumji19/selenium"
+        IMAGE_NAME = "gaumji19/flight-reservations"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
         DOCKER_HUB = credentials('dockerhub-creds')
     }
@@ -16,28 +16,30 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:latest ."
+                sh """
+                    docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${IMAGE_TAG} .
+                """
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                sh '''
+                sh """
                     echo "$DOCKER_HUB_PSW" | docker login -u "$DOCKER_HUB_USR" --password-stdin
-                    docker tag ${IMAGE_NAME}:latest ${IMAGE_NAME}:${BUILD_NUMBER}
-                    docker push ${IMAGE_NAME}:${BUILD_NUMBER}
-                '''
+                    docker push ${IMAGE_NAME}:latest
+                    docker push ${IMAGE_NAME}:${IMAGE_TAG}
+                """
             }
         }
 
         stage('Run Tests with Allure') {
             steps {
-                sh '''
+                sh """
                     echo "Running Tests with Maven..."
                     mvn clean test \
                       -Dbrowser=chrome \
-                      -DsuiteXmlFile=test-suites/flight-reservation.xml
-                '''
+                      -DsuiteXmlFile=src/test/resources/test-suites/flight-reservation.xml
+                """
             }
         }
 
@@ -50,12 +52,8 @@ pipeline {
 
     post {
         always {
-        script {
-            node {
-                sh 'docker logout || true'
-                archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
-            }
+            sh 'docker logout || true'
+            archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
         }
     }
-}
 }
