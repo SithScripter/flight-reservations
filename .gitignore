@@ -45,3 +45,5 @@ node_modules/
 allure-results/
 allure-report/
 .allure/
+
+jenkins_home_reservations/
