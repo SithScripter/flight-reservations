@@ -44,3 +44,4 @@ node_modules/
 # 📊 Allure Reports & Results
 allure-results/
 allure-report/
+.allure/
