@@ -15,12 +15,7 @@ pipeline {
     }
 
     stages {
-        // ✅ THIS IS THE FIX: This stage cleans the workspace
-        stage('Clean Workspace') {
-            steps {
-                cleanWs()
-            }
-        }
+        // 'Clean Workspace' stage has been REMOVED from here
 
         stage('Build & Push') {
             when { expression { params.ACTION == 'BUILD_AND_PUSH' } }
@@ -75,6 +70,9 @@ pipeline {
 
             echo "📤 Cleaning up..."
             sh 'docker logout || true'
+
+            // ✅ THIS IS THE FIX: Clean the workspace at the end of the build
+            cleanWs()
         }
 
         success {
