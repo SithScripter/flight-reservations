@@ -15,8 +15,6 @@ pipeline {
     }
 
     stages {
-        // 'Clean Workspace' stage has been REMOVED from here
-
         stage('Build & Push') {
             when { expression { params.ACTION == 'BUILD_AND_PUSH' } }
             steps {
@@ -65,13 +63,15 @@ pipeline {
 
                     echo "📦 Archiving reports..."
                     archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
+
+                    // ✅ THIS IS THE FIX: Tear down the test environment
+                    echo "Tearing down test environment..."
+                    sh "docker-compose -f docker-compose.test.yml down -v"
                 }
             }
 
             echo "📤 Cleaning up..."
             sh 'docker logout || true'
-
-            // ✅ THIS IS THE FIX: Clean the workspace at the end of the build
             cleanWs()
         }
 
