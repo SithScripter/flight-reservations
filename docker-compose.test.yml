@@ -13,10 +13,10 @@ services:
     # ✅ Reset the image's default entrypoint
     entrypoint: ""
 
-    # ✅ Use the correct, simpler path to the test suite
+    # ✅ THIS IS THE FIX: Use the 'java' command to run tests from the JARs
     command: >
       sh -c "
-        mvn test -DsuiteXmlFile=test-suites/flight-reservation.xml
+        java -cp 'libs/*' org.testng.TestNG test-suites/flight-reservation.xml
       "
 
   selenium-hub:
