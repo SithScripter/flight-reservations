@@ -23,7 +23,7 @@ services:
         done
 
         echo 'Selenium Grid is up and running. Running tests...'
-        java -cp 'libs/*' -Dselenium.grid.hubHost=${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml
+        java -cp 'libs/*' -Dselenium.grid.hubHost=$${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml
       "
   selenium-hub:
     image: selenium/hub:4.27
