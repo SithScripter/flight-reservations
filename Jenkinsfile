@@ -61,7 +61,7 @@ pipeline {
             steps {
                 echo "🚀 Launching test environment with Docker Compose..."
                 sh """
-                    docker-compose -f docker-compose.test.yml up --build --exit-code-from flight-reservations
+                    docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
                 """
             }
         }
