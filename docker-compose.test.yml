@@ -13,10 +13,10 @@ services:
     # ✅ Reset the image's default entrypoint
     entrypoint: ""
 
-    # ✅ Use the correct path to the test suite inside the container's 'target' directory
+    # ✅ Use the correct, simpler path to the test suite
     command: >
       sh -c "
-        mvn test -DsuiteXmlFile=target/test-classes/test-suites/flight-reservation.xml
+        mvn test -DsuiteXmlFile=test-suites/flight-reservation.xml
       "
 
   selenium-hub:
