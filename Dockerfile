@@ -1,53 +1,18 @@
+# Use the small and efficient Alpine base image with Java 21
 FROM bellsoft/liberica-openjdk-alpine:21.0.6
 
-# Install curl jq
-#RUN apk add curl jq
-RUN apk add --no-cache curl jq dos2unix
+# Install curl (needed for downloading) and Maven
+RUN apk add --no-cache curl
+ENV MAVEN_VERSION=3.9.6
+RUN curl -fsSL https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz | \
+    tar -xz -C /opt && \
+    ln -s /opt/apache-maven-${MAVEN_VERSION} /opt/maven
+ENV MAVEN_HOME=/opt/maven
+ENV PATH="${MAVEN_HOME}/bin:${PATH}"
 
-# workspace
+# Set the working directory inside the container
 WORKDIR /home/flight-reservations
 
-# Add the required files to run the test
+# Copy the pre-built JARs, dependencies, and test resources
+# This uses the output from your 'mvn package' step
 ADD target/docker-resources ./
-#ADD https://raw.githubusercontent.com/vinsguru/selenium-docker/master/06-jenkins-ci-cd/selenium-docker/runner.sh runner.sh
-#ADD runner.sh runner.sh
-ADD runner.sh runner.sh
-
-# Environment variables to be added
-# BROWSER
-# HUB_HOST
-# TEST_SUITE
-# THREAD_COUNT
-
-# Run the tests (remember in linux, if the command is bit lengthy it can be broken in next line using \ which tells that
-# it's just a single command-check below
-
-#ENTRYPOINT java -cp 'libs/*' \
-#                -Dselenium.grid.enabled=true \
-#                -Dselenium.grid.hubHost=${HUB_HOST} \
-#                -Dbrowser=${BROWSER} \
-#                org.testng.TestNG \
-#                -threadcount ${THREAD_COUNT} \
-#                test-suites/${TEST_SUITE}
-
-# to recitfy warning using sinle command-but din't work same thing-use any...well no need of this as well, as
-#we will use runner.sh
-
-#ENTRYPOINT java -cp 'libs/*' -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=${HUB_HOST} -Dbrowser=${BROWSER} org.testng.TestNG -threadcount ${THREAD_COUNT} test-suites/${TEST_SUITE}
-
-#if any issue with runner.sh in windows then use below
-# Fix for Windows CRLF issues (required on Windows hosts)
-RUN dos2unix runner.sh
-
-#start the runner
-ENTRYPOINT sh runner.sh
-
-# grok recommended solution for issues that i faced
-# Fix for Windows line endings
-#RUN dos2unix /home/selenium-docker/runner.sh
-
-# Ensure the script is executable
-#RUN chmod +x /home/selenium-docker/runner.sh
-
-# Start the runner.sh
-#ENTRYPOINT ["sh", "/home/selenium-docker/runner.sh"]
