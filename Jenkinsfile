@@ -45,27 +45,24 @@ pipeline {
             when { expression { params.ACTION == 'TEST' } }
             steps {
                 echo "🚀 Launching test environment with Docker Compose..."
-                // This step will intentionally fail if tests fail, which is correct.
                 sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
             }
         }
     }
 
     post {
-        // This 'always' block runs regardless of the build's success or failure.
         always {
-            // ✅ Generate the report here so it always runs, even on failure.
-            stage('Allure Report') {
-                when { expression { params.ACTION == 'TEST' } }
-                steps {
-                    echo "🧪 Generating Allure Report..."
-                    allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
-                }
-            }
-
-            // Archive the reports
+            // ✅ THIS IS THE FIX: Run report/archive logic inside a script block
             script {
                 if (params.ACTION == 'TEST') {
+                    echo "🧪 Generating Allure Report..."
+                    // Use a try/catch block to prevent failure if results don't exist
+                    try {
+                        allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
+                    } catch (e) {
+                        echo "Allure report generation failed, likely no results found."
+                    }
+
                     echo "📦 Archiving reports..."
                     archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
                 }
@@ -75,7 +72,6 @@ pipeline {
             sh 'docker logout || true'
         }
 
-        // This 'success' block only runs if the main stages succeed.
         success {
             script {
                 if (params.ACTION == 'BUILD_AND_PUSH') {
