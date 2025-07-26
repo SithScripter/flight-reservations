@@ -13,12 +13,18 @@ services:
     # ✅ Reset the image's default entrypoint
     entrypoint: ""
 
-    # ✅ THIS IS THE FIX: Use the 'java' command to run tests from the JARs
+    # ✅ THIS IS THE FIX: Add the wait-loop before the java command
     command: >
       sh -c "
+        # Wait for the Grid to be ready
+        while ! curl -sSL http://selenium-hub:4444/wd/hub/status | jq -r '.value.ready' | grep 'true' > /dev/null; do
+            echo 'Waiting for the Grid to be ready...'
+            sleep 1
+        done
+
+        echo 'Selenium Grid is up and running. Running tests...'
         java -cp 'libs/*' org.testng.TestNG test-suites/flight-reservation.xml
       "
-
   selenium-hub:
     image: selenium/hub:4.27
     container_name: selenium-hub
