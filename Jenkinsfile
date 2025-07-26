@@ -15,7 +15,6 @@ pipeline {
     }
 
     stages {
-
         stage('Build & Push') {
             when { expression { params.ACTION == 'BUILD_AND_PUSH' } }
             steps {
@@ -42,20 +41,6 @@ pipeline {
             }
         }
 
-//         stage('Run Tests in Container') {
-//             when { expression { params.ACTION == 'TEST' } }
-//             steps {
-//                 echo "🐳 Pulling Docker image and running tests..."
-//                 sh """
-//                     docker pull ${IMAGE_NAME}:latest
-//                     docker run --rm \\
-//                         -v "\${PWD}/target:/home/flight-reservations/target" \\
-//                         ${IMAGE_NAME}:latest \\
-//                         sh -c 'mvn test'
-//                 """
-//             }
-//         }
-
         stage('Run Tests in Container') {
             when { expression { params.ACTION == 'TEST' } }
             steps {
@@ -76,14 +61,20 @@ pipeline {
     }
 
     post {
+        // This block runs after all stages
         always {
-            echo "📤 Cleaning up Docker credentials..."
+            echo "📤 Cleaning up..."
             sh 'docker logout || true'
-
+        }
+        // This block runs only on success
+        success {
+            // ✅ THIS IS THE FIX: If the build was successful, trigger the test job
             script {
-                if (params.ACTION == 'TEST') {
-                    echo "📦 Archiving reports..."
-                    archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
+                if (params.ACTION == 'BUILD_AND_PUSH') {
+                    echo "Triggering downstream 'run-tests' job..."
+                    build job: 'run-tests', parameters: [
+                        string(name: 'ACTION', value: 'TEST')
+                    ]
                 }
             }
         }
