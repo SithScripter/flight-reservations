@@ -10,6 +10,11 @@ services:
       - HUB_HOST=selenium-hub
     volumes:
       - ./target:/home/flight-reservations/target
+    # This overrides the image's default command and runs the correct test suite.
+    command: >
+      sh -c "
+        mvn test -DsuiteXmlFile=test-suites/flight-reservation.xml
+      "
 
   selenium-hub:
     image: selenium/hub:4.27
