@@ -15,6 +15,13 @@ pipeline {
     }
 
     stages {
+        // ✅ THIS IS THE FIX: This stage cleans the workspace
+        stage('Clean Workspace') {
+            steps {
+                cleanWs()
+            }
+        }
+
         stage('Build & Push') {
             when { expression { params.ACTION == 'BUILD_AND_PUSH' } }
             steps {
@@ -52,11 +59,9 @@ pipeline {
 
     post {
         always {
-            // ✅ THIS IS THE FIX: Run report/archive logic inside a script block
             script {
                 if (params.ACTION == 'TEST') {
                     echo "🧪 Generating Allure Report..."
-                    // Use a try/catch block to prevent failure if results don't exist
                     try {
                         allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
                     } catch (e) {
