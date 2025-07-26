@@ -45,30 +45,38 @@ pipeline {
             when { expression { params.ACTION == 'TEST' } }
             steps {
                 echo "🚀 Launching test environment with Docker Compose..."
-                sh """
-                    docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
-                """
-            }
-        }
-
-        stage('Allure Report') {
-            when { expression { params.ACTION == 'TEST' } }
-            steps {
-                echo "🧪 Generating Allure Report..."
-                allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
+                // This step will intentionally fail if tests fail, which is correct.
+                sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
             }
         }
     }
 
     post {
-        // This block runs after all stages
+        // This 'always' block runs regardless of the build's success or failure.
         always {
+            // ✅ Generate the report here so it always runs, even on failure.
+            stage('Allure Report') {
+                when { expression { params.ACTION == 'TEST' } }
+                steps {
+                    echo "🧪 Generating Allure Report..."
+                    allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
+                }
+            }
+
+            // Archive the reports
+            script {
+                if (params.ACTION == 'TEST') {
+                    echo "📦 Archiving reports..."
+                    archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
+                }
+            }
+
             echo "📤 Cleaning up..."
             sh 'docker logout || true'
         }
-        // This block runs only on success
+
+        // This 'success' block only runs if the main stages succeed.
         success {
-            // ✅ THIS IS THE FIX: If the build was successful, trigger the test job
             script {
                 if (params.ACTION == 'BUILD_AND_PUSH') {
                     echo "Triggering downstream 'run-tests' job..."
