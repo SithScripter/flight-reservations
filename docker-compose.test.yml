@@ -10,10 +10,13 @@ services:
       - HUB_HOST=selenium-hub
     volumes:
       - ./target:/home/flight-reservations/target
-    # ✅ THIS IS THE FIX: Use the full relative path to the suite file
+    # ✅ Reset the image's default entrypoint
+    entrypoint: ""
+
+    # ✅ Use the correct path to the test suite inside the container's 'target' directory
     command: >
       sh -c "
-        mvn test -DsuiteXmlFile=src/test/resources/test-suites/flight-reservation.xml
+        mvn test -DsuiteXmlFile=target/test-classes/test-suites/flight-reservation.xml
       "
 
   selenium-hub:
