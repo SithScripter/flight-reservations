@@ -42,16 +42,26 @@ pipeline {
             }
         }
 
+//         stage('Run Tests in Container') {
+//             when { expression { params.ACTION == 'TEST' } }
+//             steps {
+//                 echo "🐳 Pulling Docker image and running tests..."
+//                 sh """
+//                     docker pull ${IMAGE_NAME}:latest
+//                     docker run --rm \\
+//                         -v "\${PWD}/target:/home/flight-reservations/target" \\
+//                         ${IMAGE_NAME}:latest \\
+//                         sh -c 'mvn test'
+//                 """
+//             }
+//         }
+
         stage('Run Tests in Container') {
             when { expression { params.ACTION == 'TEST' } }
             steps {
-                echo "🐳 Pulling Docker image and running tests..."
+                echo "🚀 Launching test environment with Docker Compose..."
                 sh """
-                    docker pull ${IMAGE_NAME}:latest
-                    docker run --rm \\
-                        -v "\${PWD}/target:/home/flight-reservations/target" \\
-                        ${IMAGE_NAME}:latest \\
-                        sh -c 'mvn test'
+                    docker-compose -f docker-compose.test.yml up --build --exit-code-from flight-reservations
                 """
             }
         }
