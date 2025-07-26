@@ -13,7 +13,7 @@ services:
     # ✅ Reset the image's default entrypoint
     entrypoint: ""
 
-    # ✅ THIS IS THE FIX: Add the wait-loop before the java command
+    # ✅ THIS IS THE FIX: Add the -D property to the java command
     command: >
       sh -c "
         # Wait for the Grid to be ready
@@ -23,7 +23,10 @@ services:
         done
 
         echo 'Selenium Grid is up and running. Running tests...'
-        java -cp 'libs/*' org.testng.TestNG test-suites/flight-reservation.xml
+        java -cp 'libs/*' \
+             -Dselenium.grid.hubHost=${HUB_HOST} \
+             org.testng.TestNG \
+             test-suites/flight-reservation.xml
       "
   selenium-hub:
     image: selenium/hub:4.27
