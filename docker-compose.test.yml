@@ -8,12 +8,12 @@ services:
     environment:
       - BROWSER=chrome
       - HUB_HOST=selenium-hub
+    # ✅ FIX 1: Map the host's target directory to the container's target directory
     volumes:
       - ./target:/home/flight-reservations/target
-    # ✅ Reset the image's default entrypoint
+    # ✅ FIX 2: Reset the image's default entrypoint to allow the command to run
     entrypoint: ""
-
-    # ✅ THIS IS THE FIX: Run tests, then change ownership of the reports
+    # ✅ FIX 3: Run tests, then change ownership of the reports for Jenkins
     command: >
       sh -c "
         # Wait for the Grid to be ready
@@ -26,10 +26,10 @@ services:
         # Run tests and capture the exit code if it fails
         java -cp 'libs/*' -Dselenium.grid.hubHost=$${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml || EXIT_CODE=$$?
 
-        # Change ownership of the generated files to the jenkins user (UID 1000)
+        # Change ownership of generated files to the jenkins user (UID 1000)
         chown -R 1000:1000 target
 
-        # Exit with the original exit code of the test run (or 0 if it passed)
+        # Exit with the original test exit code (or 0 if it passed)
         exit $${EXIT_CODE:-0}
       "
   selenium-hub:
