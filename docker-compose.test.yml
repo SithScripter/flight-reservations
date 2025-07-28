@@ -13,7 +13,7 @@ services:
     # ✅ Reset the image's default entrypoint
     entrypoint: ""
 
-    # ✅ THIS IS THE FIX: The 'java' command is now on a single line
+    # ✅ THIS IS THE FIX: Run tests, then change ownership of the reports
     command: >
       sh -c "
         # Wait for the Grid to be ready
@@ -23,7 +23,14 @@ services:
         done
 
         echo 'Selenium Grid is up and running. Running tests...'
-        java -cp 'libs/*' -Dselenium.grid.hubHost=$${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml
+        # Run tests and capture the exit code if it fails
+        java -cp 'libs/*' -Dselenium.grid.hubHost=$${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml || EXIT_CODE=$$?
+
+        # Change ownership of the generated files to the jenkins user (UID 1000)
+        chown -R 1000:1000 target
+
+        # Exit with the original exit code of the test run (or 0 if it passed)
+        exit $${EXIT_CODE:-0}
       "
   selenium-hub:
     image: selenium/hub:4.27
