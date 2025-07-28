@@ -3,7 +3,6 @@
 
     <listeners>
         <listener class-name="com.gaumji.listener.TestListener"/>
-        <listener class-name="io.qameta.allure.testng.AllureTestNg"/>
     </listeners>
 
     <test name="passengers count 1-chrome">
