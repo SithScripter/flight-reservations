@@ -93,6 +93,8 @@
                     <argLine>
                         -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                         -Dallure.results.directory=${project.build.directory}/allure-results
+                        -Dorg.testng.TestNG.setTestClasses=true
+                        -Dorg.testng.TestNG.listener=io.qameta.allure.testng.AllureTestNg
                     </argLine>
                     <systemPropertyVariables>
                         <browser>firefox</browser>
@@ -103,12 +105,6 @@
                     </suiteXmlFiles>
                     <threadCount>4</threadCount>
                     <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-                    <properties>
-                        <property>
-                            <name>listeners</name>
-                            <value>io.qameta.allure.testng.AllureTestNg</value>
-                        </property>
-                    </properties>
                 </configuration>
             </plugin>
 
@@ -116,6 +112,10 @@
                 <groupId>io.qameta.allure</groupId>
                 <artifactId>allure-maven</artifactId>
                 <version>${allure.maven.plugin.version}</version>
+                <configuration>
+                    <reportDirectory>${project.build.directory}/allure-report</reportDirectory>
+                    <resultsDirectory>${project.build.directory}/allure-results</resultsDirectory>
+                </configuration>
             </plugin>
 
             <plugin>
