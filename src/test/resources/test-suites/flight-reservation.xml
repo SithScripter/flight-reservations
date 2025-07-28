@@ -2,6 +2,7 @@
 <suite name="Flight-Reservation" parallel="tests" thread-count="2">
 
     <listeners>
+        <listener class-name="io.qameta.allure.testng.AllureTestNg"/>
         <listener class-name="com.gaumji.listener.TestListener"/>
     </listeners>
 
