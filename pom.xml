@@ -104,7 +104,6 @@
                     <threadCount>4</threadCount>
                     <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
 
-                    <!-- ✅ Register Allure listener HERE -->
                     <properties>
                         <property>
                             <name>listener</name>
