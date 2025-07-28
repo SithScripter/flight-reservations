@@ -56,25 +56,25 @@ pipeline {
                 if (params.ACTION == 'TEST') {
                     echo "🧪 Generating Allure Report..."
                     try {
-                        // Host diagnostics BEFORE allure command
+                        // Host diagnostics BEFORE allure command - CORRECTED SYNTAX
                         echo '--- JENKINS HOST DIAGNOSTICS (BEFORE ALLURE) ---'
-                        echo 'Current Jenkins Workspace:' $(pwd)
-                        echo 'Contents of Jenkins workspace:'
-                        ls -la .
-                        echo 'Contents of Jenkins workspace target directory:'
-                        ls -la target/ || true # Use || true so it doesn't fail if dir doesn't exist
-                        echo 'Contents of Jenkins workspace target/allure-results directory:'
-                        ls -la target/allure-results/ || true
-                        echo 'Permissions of Jenkins workspace target/allure-results directory:'
-                        stat -c '%a %n' target/allure-results/ || true
+                        sh 'echo "Current Jenkins Workspace: $(pwd)"'
+                        sh 'echo "Contents of Jenkins workspace:"'
+                        sh 'ls -la .'
+                        sh 'echo "Contents of Jenkins workspace target directory:"'
+                        sh 'ls -la target/ || true' // || true prevents build failure if dir doesn't exist
+                        sh 'echo "Contents of Jenkins workspace target/allure-results directory:"'
+                        sh 'ls -la target/allure-results/ || true'
+                        sh 'echo "Permissions of Jenkins workspace target/allure-results directory:"'
+                        sh 'stat -c \'%a %n\' target/allure-results/ || true' // Escaping single quotes for Groovy
                         echo '-------------------------------------------------'
 
                         allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
                     } catch (e) {
                         echo "Allure report generation failed, likely no results found. Error: ${e.getMessage()}"
+                        // Optionally rethrow if you want the build to fail on Allure report gen failure
+                        // throw e
                     }
-
-
                     echo "📦 Archiving reports..."
                     archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
 
