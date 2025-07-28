@@ -8,14 +8,20 @@ services:
     environment:
       - BROWSER=chrome
       - HUB_HOST=selenium-hub
-    # ✅ FIX 1: Map the host's target directory to the container's target directory
     volumes:
-      - ./target:/home/flight-reservations/target
-    # ✅ FIX 2: Reset the image's default entrypoint to allow the command to run
+      - ./target:/home/flight-reservations/target # Make sure this path is correct relative to Jenkins workspace
     entrypoint: ""
-    # ✅ FIX 3: Run tests, then change ownership of the reports for Jenkins
     command: >
       sh -c "
+        # Add diagnostics BEFORE tests
+        echo '--- CONTAINER DIAGNOSTICS (BEFORE TESTS) ---'
+        echo 'Current Working Directory inside container:' $(pwd)
+        echo 'Contents of /home/flight-reservations/:'
+        ls -la /home/flight-reservations/
+        echo 'Contents of /home/flight-reservations/target/ (should be empty or old):'
+        ls -la /home/flight-reservations/target/
+        echo '--------------------------------------------'
+      
         # Wait for the Grid to be ready
         while ! curl -sSL http://selenium-hub:4444/wd/hub/status | jq -r '.value.ready' | grep 'true' > /dev/null; do
             echo 'Waiting for the Grid to be ready...'
@@ -24,10 +30,27 @@ services:
 
         echo 'Selenium Grid is up and running. Running tests...'
         # Run tests and capture the exit code if it fails
+        # Ensure this command is run from the correct directory if not already in WORKDIR /home/flight-reservations
         java -cp 'libs/*' -Dselenium.grid.hubHost=$${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml || EXIT_CODE=$$?
+
+        # Add diagnostics AFTER tests
+        echo '--- CONTAINER DIAGNOSTICS (AFTER TESTS) ---'
+        echo 'Contents of /home/flight-reservations/target/:'
+        ls -la /home/flight-reservations/target/
+        echo 'Contents of /home/flight-reservations/target/allure-results/:'
+        ls -la /home/flight-reservations/target/allure-results/
+        echo 'Permissions of /home/flight-reservations/target/allure-results/:'
+        stat -c '%a %n' /home/flight-reservations/target/allure-results/ || true # Use || true to prevent command failure if dir doesn't exist
+        echo '-------------------------------------------'
 
         # Change ownership of generated files to the jenkins user (UID 1000)
         chown -R 1000:1000 target
+
+        # Verify ownership after chown
+        echo '--- CONTAINER DIAGNOSTICS (AFTER CHOWN) ---'
+        echo 'Contents of /home/flight-reservations/target/ with new ownership:'
+        ls -la /home/flight-reservations/target/
+        echo '-------------------------------------------'
 
         # Exit with the original test exit code (or 0 if it passed)
         exit $${EXIT_CODE:-0}

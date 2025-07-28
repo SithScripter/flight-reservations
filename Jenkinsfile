@@ -56,10 +56,24 @@ pipeline {
                 if (params.ACTION == 'TEST') {
                     echo "🧪 Generating Allure Report..."
                     try {
+                        // Host diagnostics BEFORE allure command
+                        echo '--- JENKINS HOST DIAGNOSTICS (BEFORE ALLURE) ---'
+                        echo 'Current Jenkins Workspace:' $(pwd)
+                        echo 'Contents of Jenkins workspace:'
+                        ls -la .
+                        echo 'Contents of Jenkins workspace target directory:'
+                        ls -la target/ || true # Use || true so it doesn't fail if dir doesn't exist
+                        echo 'Contents of Jenkins workspace target/allure-results directory:'
+                        ls -la target/allure-results/ || true
+                        echo 'Permissions of Jenkins workspace target/allure-results directory:'
+                        stat -c '%a %n' target/allure-results/ || true
+                        echo '-------------------------------------------------'
+
                         allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
                     } catch (e) {
-                        echo "Allure report generation failed, likely no results found."
+                        echo "Allure report generation failed, likely no results found. Error: ${e.getMessage()}"
                     }
+
 
                     echo "📦 Archiving reports..."
                     archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
