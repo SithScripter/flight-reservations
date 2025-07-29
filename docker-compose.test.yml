@@ -14,56 +14,26 @@ services:
     entrypoint: ""
     command: >
       sh -c "
-        # Ensure the target directory exists within the container BEFORE Maven runs
-        mkdir -p /home/flight-reservations/target/allure-results
-        # Give it explicit permissions just in case
-        chmod 777 /home/flight-reservations/target /home/flight-reservations/target/allure-results
-
-        echo '--- CONTAINER DIAGNOSTICS (BEFORE TESTS) ---'
+        echo '--- CONTAINER DIAGNOSTICS (START) ---'
         echo 'Current Working Directory inside container:' $(pwd)
-        echo 'Contents of /home/flight-reservations/:'
         ls -la /home/flight-reservations/
-        echo 'Contents of /home/flight-reservations/target/ (should be empty or old):'
-        ls -la /home/flight-reservations/target/
-        echo '--------------------------------------------'
+
+        # Simple test to confirm execution proceeds
+        echo 'Point A: Before Grid Check'
 
         while ! curl -sSL http://selenium-hub:4444/wd/hub/status | jq -r '.value.ready' | grep 'true' > /dev/null; do
             echo 'Waiting for the Grid to be ready...'
             sleep 1
         done
 
-        echo 'Selenium Grid is up and running. Running tests...'
+        echo 'Point B: After Grid Check - Selenium Grid is up and running. Running tests...'
+
+        echo 'Point C: After "Running tests" message - This line should definitely appear!'
       
-        echo "Checking internet connectivity..."
-        apk add --no-cache bind-tools curl
-        nslookup repo.maven.apache.org || true
-        curl -I https://repo.maven.apache.org || true
+        # We will re-introduce Maven and other checks once Point C appears reliably.
       
-        echo 'Checking suite XML file exists:'
-        ls -la src/test/resources/test-suites/flight-reservation.xml || true
-      
-        # Run tests with increased Maven verbosity for debugging
-        mvn clean test -X -Dsurefire.debug=true -Dsurefire.failIfNoTests=false -Dselenium.grid.hubHost=$${HUB_HOST} || EXIT_CODE=$$?
-
-        echo '--- CONTAINER DIAGNOSTICS (AFTER TESTS) ---'
-        echo 'Contents of /home/flight-reservations/target/:'
-        ls -la /home/flight-reservations/target/
-        echo 'Contents of /home/flight-reservations/target/allure-results/:'
-        ls -la /home/flight-reservations/target/allure-results/
-        echo 'Permissions of /home/flight-reservations/target/allure-results/:'
-        stat -c '%a %n' /home/flight-reservations/target/allure-results/ || true
-        echo '-------------------------------------------'
-
-        # Change ownership of generated files to the jenkins user (UID 1000)
-        chown -R 1000:1000 target
-
-        # Verify ownership after chown
-        echo '--- CONTAINER DIAGNOSTICS (AFTER CHOWN) ---'
-        echo 'Contents of /home/flight-reservations/target/ with new ownership:'
-        ls -la /home/flight-reservations/target/
-        echo '-------------------------------------------'
-
-        exit $${EXIT_CODE:-0}
+        echo 'Point D: End of script reached successfully.'
+        exit 0
       "
   selenium-hub:
     image: selenium/hub:4.27
