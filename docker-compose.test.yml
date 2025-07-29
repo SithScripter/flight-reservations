@@ -46,9 +46,10 @@ services:
       
         # Original command:
         # java -cp 'libs/*' -Dselenium.grid.hubHost=$${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml || EXIT_CODE=$$?
-
+      
         # Let's try running Maven directly, as it manages 'target' and Allure listener
-        mvn clean test -DsuiteXmlFile=test-suites/flight-reservation.xml -Dselenium.grid.hubHost=$${HUB_HOST} || EXIT_CODE=$$?
+        # Removed -DsuiteXmlFile as it's handled by pom.xml
+        mvn clean test -Dselenium.grid.hubHost=$${HUB_HOST} || EXIT_CODE=$$?
 
 
         echo '--- CONTAINER DIAGNOSTICS (AFTER TESTS) ---'
