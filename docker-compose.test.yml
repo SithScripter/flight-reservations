@@ -17,7 +17,6 @@ services:
         echo '--- CONTAINER DIAGNOSTICS (START) ---'
         echo 'Current Working Directory inside container:' $(pwd)
         ls -la /home/flight-reservations/
-
         # Simple test to confirm execution proceeds
         echo 'Point A: Before Grid Check'
 
@@ -28,7 +27,7 @@ services:
 
         echo 'Point B: After Grid Check - Selenium Grid is up and running. Running tests...'
 
-        echo 'Point C: After "Running tests" message - This line should definitely appear!'
+        echo 'Point C: After \"Running tests\" message - This line should definitely appear!'
       
         # We will re-introduce Maven and other checks once Point C appears reliably.
       
