@@ -44,10 +44,14 @@ pipeline {
         stage('Run Tests in Container') {
             when { expression { params.ACTION == 'TEST' } }
             steps {
+                echo "Pre-creating target directory on Jenkins host..."
+                sh 'mkdir -p target/allure-results'
+                sh 'chmod 777 target' // Ensure Jenkins has write permissions to 'target'
+                sh 'chmod 777 target/allure-results' // Ensure Jenkins has write permissions to 'allure-results'
+
                 echo "🚀 Launching test environment with Docker Compose..."
                 sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
             }
-        }
     }
 
     post {
@@ -56,22 +60,27 @@ pipeline {
                 if (params.ACTION == 'TEST') {
                     echo "🧪 Generating Allure Report..."
                     try {
-                        // Host diagnostics BEFORE allure command - CORRECTED SYNTAX
-                        echo '--- JENKINS HOST DIAGNOSTICS (BEFORE ALLURE) ---'
+                        // Host diagnostics BEFORE allure command - (your existing diagnostics)
                         sh 'echo "Current Jenkins Workspace: $(pwd)"'
                         sh 'echo "Contents of Jenkins workspace:"'
                         sh 'ls -la .'
                         sh 'echo "Contents of Jenkins workspace target directory:"'
-                        sh 'ls -la target/ || true' // || true prevents build failure if dir doesn't exist
+                        sh 'ls -la target/ || true'
                         sh 'echo "Contents of Jenkins workspace target/allure-results directory:"'
                         sh 'ls -la target/allure-results/ || true'
                         sh 'echo "Permissions of Jenkins workspace target/allure-results directory:"'
-                        sh 'stat -c \'%a %n\' target/allure-results/ || true' // Escaping single quotes for Groovy
+                        sh 'stat -c \'%a %n\' target/allure-results/ || true'
                         echo '-------------------------------------------------'
 
-                        allure includeProperties: false, jdk: '', results: [[path: 'target/allure-results']]
+                        // ✅ FIX: Specify the 'tool' attribute here with the name you gave in Global Tool Configuration
+                        allure(
+                            tool: 'Allure_3.x', // Use the name you configured in Jenkins Global Tool Configuration
+                            includeProperties: false,
+                            jdk: '', // or 'jdk8' if you have one configured
+                            results: [[path: 'target/allure-results']]
+                        )
                     } catch (e) {
-                        echo "Allure report generation failed, likely no results found. Error: ${e.getMessage()}"
+                        echo "Allure report generation failed. Error: ${e.getMessage()}"
                         // Optionally rethrow if you want the build to fail on Allure report gen failure
                         // throw e
                     }
