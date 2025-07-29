@@ -1,14 +1,19 @@
-# Use the small and efficient Alpine base image with Java 21
+# Java 21 on Alpine
 FROM bellsoft/liberica-openjdk-alpine:21.0.6
 
-# ✅ ADD THESE TOOLS for the health check
-RUN apk add --no-cache curl jq
+# Install Maven and other tools
+RUN apk add --no-cache curl jq maven
 
-# Set the working directory inside the container
+# Set working directory
 WORKDIR /home/flight-reservations
 
-# Copy the pom.xml file
+# Copy POM
 COPY pom.xml .
 
-# Copy the pre-built JARs, dependencies, and test resources
-ADD target/docker-resources ./
+# Copy source and resources
+COPY src ./src
+COPY test-suites ./test-suites
+COPY test-data ./test-data
+COPY config ./config
+COPY allure.properties .
+COPY libs ./libs  # If any extra JARs are needed
