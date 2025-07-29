@@ -75,7 +75,7 @@ pipeline {
 
                         // ✅ FIX: Specify the 'tool' attribute here with the name you gave in Global Tool Configuration
                         allure(
-                            tool: 'Allure_3.x', // Use the name you configured in Jenkins Global Tool Configuration
+                            tool: 'Allure_2.34.1', // Use the name you configured in Jenkins Global Tool Configuration
                             includeProperties: false,
                             jdk: '', // or 'jdk8' if you have one configured
                             results: [[path: 'target/allure-results']]
