@@ -14,6 +14,9 @@ services:
     # and we want its 'target' subdirectory to be mapped to the container's '/home/flight-reservations/target'
     volumes:
       - ./target:/home/flight-reservations/target # Keep this as it is, as Jenkins' PWD should be the workspace
+#      - ~/.m2:/root/.m2
+      - /var/jenkins_home/.m2:/root/.m2
+    # The entrypoint and command are set to ensure the container runs the tests
     entrypoint: ""
     command: >
       sh -c "
@@ -46,7 +49,12 @@ services:
       
         # Original command:
         # java -cp 'libs/*' -Dselenium.grid.hubHost=$${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml || EXIT_CODE=$$?
-      
+        
+        echo "Checking internet connectivity..."
+        apk add --no-cache bind-tools curl
+        nslookup repo.maven.apache.org || true
+        curl -I https://repo.maven.apache.org || true
+        
         # Let's try running Maven directly, as it manages 'target' and Allure listener
         # Removed -DsuiteXmlFile as it's handled by pom.xml
         mvn clean test -Dselenium.grid.hubHost=$${HUB_HOST} || EXIT_CODE=$$?
