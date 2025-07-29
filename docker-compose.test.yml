@@ -55,6 +55,9 @@ services:
         nslookup repo.maven.apache.org || true
         curl -I https://repo.maven.apache.org || true
         
+        echo 'Checking suite XML file exists:'
+        ls -la src/test/resources/test-suites/flight-reservation.xml || true
+        
         # Let's try running Maven directly, as it manages 'target' and Allure listener
         # Removed -DsuiteXmlFile as it's handled by pom.xml
         mvn clean test -Dselenium.grid.hubHost=$${HUB_HOST} || EXIT_CODE=$$?

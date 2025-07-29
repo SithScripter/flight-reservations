@@ -99,7 +99,7 @@
                         <selenium.grid.enabled>true</selenium.grid.enabled>
                     </systemPropertyVariables>
                     <suiteXmlFiles>
-                        <suiteXmlFile>${suiteXmlFile}</suiteXmlFile>
+                        <suiteXmlFile>${project.basedir}/src/test/resources/test-suites/flight-reservation.xml</suiteXmlFile>
                     </suiteXmlFiles>
                     <threadCount>4</threadCount>
                     <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
