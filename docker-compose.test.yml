@@ -12,27 +12,24 @@ services:
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
     entrypoint: ""
+    # ✅ FIX 3: Run tests, then change ownership of the reports for Jenkins
     command: >
       sh -c "
-        echo '--- CONTAINER DIAGNOSTICS (START) ---'
-        echo 'Current Working Directory inside container:' $(pwd)
-        ls -la /home/flight-reservations/
-        # Simple test to confirm execution proceeds
-        echo 'Point A: Before Grid Check'
-
+        # Wait for the Grid to be ready
         while ! curl -sSL http://selenium-hub:4444/wd/hub/status | jq -r '.value.ready' | grep 'true' > /dev/null; do
             echo 'Waiting for the Grid to be ready...'
             sleep 1
         done
 
-        echo 'Point B: After Grid Check - Selenium Grid is up and running. Running tests...'
+        echo 'Selenium Grid is up and running. Running tests...'
+        # Run tests and capture the exit code if it fails
+        java -cp 'libs/*' -Dselenium.grid.hubHost=$${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml || EXIT_CODE=$$?
 
-        echo 'Point C: After \"Running tests\" message - This line should definitely appear!'
-      
-        # We will re-introduce Maven and other checks once Point C appears reliably.
-      
-        echo 'Point D: End of script reached successfully.'
-        exit 0
+        # Change ownership of generated files to the jenkins user (UID 1000)
+        chown -R 1000:1000 target
+
+        # Exit with the original test exit code (or 0 if it passed)
+        exit $${EXIT_CODE:-0}
       "
   selenium-hub:
     image: selenium/hub:4.27
