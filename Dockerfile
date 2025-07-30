@@ -1,13 +1,11 @@
-# Use a Java runtime image.
+# Use the small and efficient Alpine base image with Java 21
 FROM bellsoft/liberica-openjdk-alpine:21.0.6
 
-# Set the working directory
+# Set the working directory inside the container
 WORKDIR /home/flight-reservations
 
-# Copy the application JAR from the build stage (assuming it's named flight-reservations-1.0-SNAPSHOT.jar)
-# Your Jenkinsfile's `mvn package` command produces this.
-COPY target/flight-reservations-1.0-SNAPSHOT.jar .
+# Copy the application JAR from the build stage
+COPY target/docker-resources/libs/flight-reservations.jar .
 
 # Define the command to run your application.
-# If your application is a Spring Boot app, it might be something like this.
-# ENTRYPOINT ["java", "-jar", "flight-reservations-1.0-SNAPSHOT.jar"]
+# ENTRYPOINT ["java", "-jar", "flight-reservations.jar"]
