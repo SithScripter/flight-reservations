@@ -1,39 +1,45 @@
+# docker-compose.test.yml with Maven test execution reintroduced
 services:
-  flight-reservations-tests:
-    image: gaumji19/flight-reservations-test-runner:latest
+  flight-reservations:
+    image: gaumji19/flight-reservations:latest
     container_name: flight-reservations-tests
-    user: "1000"
     depends_on:
-      selenium-hub:
-        condition: service_healthy
+      - chrome
+      - firefox
     environment:
       - BROWSER=chrome
       - HUB_HOST=selenium-hub
     volumes:
-      # We no longer need to mount the .m2 repository, as dependencies are in the image.
-      # But we still need to mount target to get the test results out.
       - ./target:/home/flight-reservations/target
+      - /var/jenkins_home/.m2:/root/.m2
+    restart: "no"
     entrypoint: ""
     command: >
       sh -c "
+        echo '--- CONTAINER DIAGNOSTICS (START) ---'
+        echo 'Current Working Directory inside container:' $(pwd)
+        ls -la /home/flight-reservations/
+        echo 'Point A: Before Grid Check'
+
         while ! curl -sSL http://selenium-hub:4444/wd/hub/status | jq -r '.value.ready' | grep 'true' > /dev/null; do
-            echo 'Waiting for the Grid...'
+            echo 'Waiting for the Grid to be ready...'
             sleep 1
         done
-        echo 'Running tests...'
-        # Run tests directly using the pre-compiled classes and dependencies from the image
-        java -cp 'target/libs/*:target/classes:target/test-classes' org.testng.TestNG test-suites/flight-reservation.xml || export EXIT_CODE=$?
-        exit ${EXIT_CODE:-0}
+
+        echo 'Point B: After Grid Check - Selenium Grid is up and running. Running tests...'
+
+        mvn clean test
+        TEST_EXIT_CODE=$?
+
+        echo 'Point C: After Maven test execution'
+        echo 'Point D: End of script reached successfully with exit code' $TEST_EXIT_CODE
+
+        exit $TEST_EXIT_CODE
       "
 
   selenium-hub:
     image: selenium/hub:4.27
     container_name: selenium-hub
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
     ports:
       - "4444:4444"
 
@@ -41,8 +47,7 @@ services:
     image: selenium/node-chrome:4.27
     shm_size: '2g'
     depends_on:
-      selenium-hub:
-        condition: service_healthy
+      - selenium-hub
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
@@ -52,8 +57,7 @@ services:
     image: selenium/node-firefox:4.27
     shm_size: '2g'
     depends_on:
-      selenium-hub:
-        condition: service_healthy
+      - selenium-hub
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
