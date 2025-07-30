@@ -24,13 +24,11 @@ pipeline {
             when { expression { params.ACTION == 'BUILD_AND_PUSH' } }
             steps {
                 script {
-                    withCredentials([
-                        usernamePassword(
-                            credentialsId: 'dockerhub-creds',
-                            usernameVariable: 'DOCKER_HUB_USR',
-                            passwordVariable: 'DOCKER_HUB_PSW'
-                        )
-                    ]) {
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-creds',
+                        usernameVariable: 'DOCKER_HUB_USR',
+                        passwordVariable: 'DOCKER_HUB_PSW'
+                    )]) {
                         echo "📦 Building JAR..."
                         sh 'mvn clean package -DskipTests'
 
@@ -49,12 +47,10 @@ pipeline {
         stage('Run Tests in Container') {
             when { expression { params.ACTION == 'TEST' } }
             steps {
-                echo "Pre-creating target directory on Jenkins host..."
-                sh 'mkdir -p target/allure-results'
-                sh 'chmod 777 target'
-                sh 'chmod 777 target/allure-results'
+                echo "🗂️ Creating target directory on Jenkins host..."
+                sh 'mkdir -p target/allure-results && chmod -R 777 target'
 
-                echo "🚀 Launching test environment with Docker Compose..."
+                echo "🚀 Launching test environment..."
                 sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
             }
         }
@@ -63,19 +59,22 @@ pipeline {
     post {
         always {
             script {
+                echo "📤 Cleaning up..."
+
                 if (params.ACTION == 'TEST') {
                     echo "🧪 Generating Allure Report..."
                     try {
-                        sh 'echo \"Current Jenkins Workspace: $(pwd)\"'
-                        sh 'echo \"Contents of Jenkins workspace:\"'
-                        sh 'ls -la .'
-                        sh 'echo \"Contents of Jenkins workspace target directory:\"'
-                        sh 'ls -la target/ || true'
-                        sh 'echo \"Contents of Jenkins workspace target/allure-results directory:\"'
-                        sh 'ls -la target/allure-results/ || true'
-                        sh 'echo \"Permissions of Jenkins workspace target/allure-results directory:\"'
-                        sh 'stat -c \'%a %n\' target/allure-results/ || true'
-                        echo '-------------------------------------------------'
+                        sh '''
+                            echo "Current Jenkins Workspace: $(pwd)"
+                            echo "Contents of workspace:"
+                            ls -la .
+                            echo "Contents of target:"
+                            ls -la target/ || true
+                            echo "Contents of target/allure-results:"
+                            ls -la target/allure-results/ || true
+                            echo "Permissions of target/allure-results:"
+                            stat -c '%a %n' target/allure-results/ || true
+                        '''
 
                         allure(
                             tool: 'Allure_2.34.1',
@@ -84,35 +83,39 @@ pipeline {
                             results: [[path: 'target/allure-results']]
                         )
                     } catch (e) {
-                        echo "Allure report generation failed. Error: ${e.getMessage()}"
+                        echo "⚠️ Allure report generation failed: ${e.getMessage()}"
                     }
 
-                    echo "📦 Archiving reports..."
+                    echo "📦 Archiving test reports..."
                     archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
 
-                    echo "Tearing down test environment..."
+                    echo "🧹 Tearing down test environment..."
                     sh "docker-compose -f docker-compose.test.yml down -v"
                 }
-            }
 
-            echo "📤 Cleaning up..."
-            sh 'docker logout || true'
-            cleanWs()
+                sh 'docker logout || true'
+                cleanWs()
+            }
         }
 
         success {
             script {
                 if (params.ACTION == 'BUILD_AND_PUSH') {
                     def downstreamJobName = 'run-tests'
-                    def running = Jenkins.instance.getItemByFullName(downstreamJobName)?.isBuilding()
+                    try {
+                        def downstreamJob = Jenkins.instance.getItemByFullName(downstreamJobName)
+                        def isRunning = downstreamJob?.isBuilding()
 
-                    if (running) {
-                        echo "🛑 Skipping downstream trigger. Job '${downstreamJobName}' is already running."
-                    } else {
-                        echo "✅ Triggering downstream 'run-tests' job..."
-                        build job: downstreamJobName, parameters: [
-                            string(name: 'ACTION', value: 'TEST')
-                        ]
+                        if (isRunning) {
+                            echo "🛑 Skipping trigger: '${downstreamJobName}' is already running."
+                        } else {
+                            echo "✅ Triggering downstream job: '${downstreamJobName}'..."
+                            build job: downstreamJobName, parameters: [
+                                string(name: 'ACTION', value: 'TEST')
+                            ]
+                        }
+                    } catch (err) {
+                        echo "⚠️ Error while checking/triggering downstream job: ${err.getMessage()}"
                     }
                 }
             }
