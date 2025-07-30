@@ -1,0 +1,21 @@
+# Start from the slimmed-down application image you just created.
+FROM gaumji19/flight-reservations:latest
+
+# Install tools needed for testing: Maven, curl, and jq.
+RUN apk add --no-cache curl jq maven
+
+# Set the working directory
+WORKDIR /home/flight-reservations
+
+# Copy the pom.xml to resolve dependencies
+COPY pom.xml .
+
+# Copy test-related files.
+COPY test-suites ./test-suites
+COPY src/test/java ./src/test/java
+COPY src/test/resources ./src/test/resources
+
+# Pre-compile the test classes and download test dependencies during the image build.
+# This ensures no "building" happens during the test job.
+RUN mvn test-compile && \
+    mvn dependency:copy-dependencies -DoutputDirectory=target/libs -DincludeScope=test

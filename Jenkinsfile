@@ -12,10 +12,11 @@ pipeline {
     environment {
         IMAGE_NAME = "gaumji19/flight-reservations"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
+        TEST_IMAGE_NAME = "${IMAGE_NAME}-test-runner"
     }
 
     stages {
-        stage('Build & Push') {
+        stage('Build & Push App Image') {
             when { expression { params.ACTION == 'BUILD_AND_PUSH' } }
             steps {
                 script {
@@ -29,13 +30,36 @@ pipeline {
                         echo "📦 Building JAR..."
                         sh 'mvn clean package -DskipTests'
 
-                        echo "🐳 Building Docker Image..."
+                        echo "🐳 Building Application Docker Image..."
                         sh "docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${IMAGE_TAG} ."
 
-                        echo "🚀 Pushing to Docker Hub..."
+                        echo "🚀 Pushing Application Image to Docker Hub..."
                         sh "echo '${DOCKER_HUB_PSW}' | docker login -u '${DOCKER_HUB_USR}' --password-stdin"
                         sh "docker push ${IMAGE_NAME}:latest"
                         sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                    }
+                }
+            }
+        }
+
+        stage('Build & Push Test Runner Image') {
+            when { expression { params.ACTION == 'BUILD_AND_PUSH' } }
+            steps {
+                script {
+                    withCredentials([
+                        usernamePassword(
+                            credentialsId: 'dockerhub-creds',
+                            usernameVariable: 'DOCKER_HUB_USR',
+                            passwordVariable: 'DOCKER_HUB_PSW'
+                        )
+                    ]) {
+                        echo "🐳 Building Test Runner Docker Image..."
+                        sh "docker build -f Dockerfile.test -t ${TEST_IMAGE_NAME}:latest -t ${TEST_IMAGE_NAME}:${IMAGE_TAG} ."
+
+                        echo "🚀 Pushing Test Runner Image to Docker Hub..."
+                        sh "echo '${DOCKER_HUB_PSW}' | docker login -u '${DOCKER_HUB_USR}' --password-stdin"
+                        sh "docker push ${TEST_IMAGE_NAME}:latest"
+                        sh "docker push ${TEST_IMAGE_NAME}:${IMAGE_TAG}"
                     }
                 }
             }
@@ -46,22 +70,21 @@ pipeline {
             steps {
                 echo "Pre-creating target directory on Jenkins host..."
                 sh 'mkdir -p target/allure-results'
-                sh 'chmod 777 target' // Ensure Jenkins has write permissions to 'target'
-                sh 'chmod 777 target/allure-results' // Ensure Jenkins has write permissions to 'allure-results'
+                sh 'chmod 777 target'
+                sh 'chmod 777 target/allure-results'
 
                 echo "🚀 Launching test environment with Docker Compose..."
-                sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
+                sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations-tests"
             }
         }
     }
-
+    // ... rest of your post block remains the same
     post {
         always {
             script {
                 if (params.ACTION == 'TEST') {
                     echo "🧪 Generating Allure Report..."
                     try {
-                        // Host diagnostics BEFORE allure command - (your existing diagnostics)
                         sh 'echo "Current Jenkins Workspace: $(pwd)"'
                         sh 'echo "Contents of Jenkins workspace:"'
                         sh 'ls -la .'
@@ -73,22 +96,18 @@ pipeline {
                         sh 'stat -c \'%a %n\' target/allure-results/ || true'
                         echo '-------------------------------------------------'
 
-                        // ✅ FIX: Specify the 'tool' attribute here with the name you gave in Global Tool Configuration
                         allure(
-                            tool: 'Allure_2.34.1', // Use the name you configured in Jenkins Global Tool Configuration
+                            tool: 'Allure_2.34.1',
                             includeProperties: false,
-                            jdk: '', // or 'jdk8' if you have one configured
+                            jdk: '',
                             results: [[path: 'target/allure-results']]
                         )
                     } catch (e) {
                         echo "Allure report generation failed. Error: ${e.getMessage()}"
-                        // Optionally rethrow if you want the build to fail on Allure report gen failure
-                        // throw e
                     }
                     echo "📦 Archiving reports..."
                     archiveArtifacts artifacts: 'target/allure-results/**/*.*, target/surefire-reports/**/*.*', allowEmptyArchive: true
 
-                    // ✅ THIS IS THE FIX: Tear down the test environment
                     echo "Tearing down test environment..."
                     sh "docker-compose -f docker-compose.test.yml down -v"
                 }

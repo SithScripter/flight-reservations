@@ -1,7 +1,8 @@
 services:
-  flight-reservations:
-    image: gaumji19/flight-reservations:latest
+  flight-reservations-tests:
+    image: gaumji19/flight-reservations-test-runner:latest
     container_name: flight-reservations-tests
+    user: "1000"
     depends_on:
       selenium-hub:
         condition: service_healthy
@@ -9,18 +10,19 @@ services:
       - BROWSER=chrome
       - HUB_HOST=selenium-hub
     volumes:
+      # We no longer need to mount the .m2 repository, as dependencies are in the image.
+      # But we still need to mount target to get the test results out.
       - ./target:/home/flight-reservations/target
-      - /var/jenkins_home/.m2:/root/.m2
     entrypoint: ""
     command: >
       sh -c "
-        chown -R 1000:1000 target
         while ! curl -sSL http://selenium-hub:4444/wd/hub/status | jq -r '.value.ready' | grep 'true' > /dev/null; do
             echo 'Waiting for the Grid...'
             sleep 1
         done
         echo 'Running tests...'
-        mvn clean test -Dsurefire.suiteXmlFiles=test-suites/flight-reservation.xml || export EXIT_CODE=$?
+        # Run tests directly using the pre-compiled classes and dependencies from the image
+        java -cp 'target/libs/*:target/classes:target/test-classes' org.testng.TestNG test-suites/flight-reservation.xml || export EXIT_CODE=$?
         exit ${EXIT_CODE:-0}
       "
 
