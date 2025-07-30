@@ -9,7 +9,7 @@ pipeline {
     parameters {
         choice(
             name: 'ACTION',
-            choices: ['BUILD_AND_PUSH', 'TEST'],
+            choices: ['TEST', 'BUILD_AND_PUSH'],
             description: 'Select the action to perform'
         )
     }
@@ -20,6 +20,17 @@ pipeline {
     }
 
     stages {
+        stage('Guard Job Misuse') {
+            steps {
+                script {
+                    def jobName = env.JOB_NAME ?: ''
+                    if (jobName.toLowerCase().contains("run-tests") && params.ACTION == 'BUILD_AND_PUSH') {
+                        error("❌ This job (${jobName}) is not allowed to perform BUILD_AND_PUSH. Use the 'build-and-push' job instead.")
+                    }
+                }
+            }
+        }
+
         stage('Build & Push') {
             when { expression { params.ACTION == 'BUILD_AND_PUSH' } }
             steps {
