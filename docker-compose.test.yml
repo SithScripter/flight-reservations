@@ -27,8 +27,16 @@ services:
 
         echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        # 2. Run tests using a direct java command, now with the javaagent for Allure
-        java -javaagent:"libs/aspectjweaver-1.9.20.1.jar" -cp 'libs/*' -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=$${HUB_HOST} -Dbrowser=$${BROWSER} org.testng.TestNG -threadcount $${THREAD_COUNT} test-suites/$${TEST_SUITE}
+        # 2. Run tests with the javaagent AND an explicit allure results directory
+        java -javaagent:"libs/aspectjweaver-1.9.20.1.jar" \
+             -cp 'libs/*' \
+             -Dallure.results.directory=target/allure-results \
+             -Dselenium.grid.enabled=true \
+             -Dselenium.grid.hubHost=$${HUB_HOST} \
+             -Dbrowser=$${BROWSER} \
+             org.testng.TestNG \
+             -threadcount $${THREAD_COUNT} \
+             test-suites/$${TEST_SUITE}
       "
   selenium-hub:
     image: selenium/hub:4.27
