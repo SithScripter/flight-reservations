@@ -1,4 +1,3 @@
-# docker-compose.test.yml with Maven test execution reintroduced
 services:
   flight-reservations:
     image: gaumji19/flight-reservations:latest
@@ -7,36 +6,36 @@ services:
       - chrome
       - firefox
     environment:
-      - BROWSER=chrome
       - HUB_HOST=selenium-hub
+      - BROWSER=chrome
+      - THREAD_COUNT=1
+      # We now need to specify the suite file for the java command
+      - TEST_SUITE=flight-reservation.xml
     volumes:
+      # This volume mount is still crucial for getting results back to Jenkins
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
-    restart: "no"
     entrypoint: ""
     command: >
       sh -c "
-        echo '--- CONTAINER DIAGNOSTICS (START) ---'
-        echo 'Current Working Directory inside container:' $(pwd)
-        ls -la /home/flight-reservations/
-        echo 'Point A: Before Grid Check'
-
+        # 1. Wait for the Grid to be ready
+        echo '--- WAITING FOR SELENIUM GRID ---'
         while ! curl -sSL http://selenium-hub:4444/wd/hub/status | jq -r '.value.ready' | grep 'true' > /dev/null; do
             echo 'Waiting for the Grid to be ready...'
             sleep 1
-        done
+        done;
 
-        echo 'Point B: After Grid Check - Selenium Grid is up and running. Running tests...'
+        echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        mvn clean test
-        TEST_EXIT_CODE=$?
-
-        echo 'Point C: After Maven test execution'
-        echo 'Point D: End of script reached successfully with exit code' $TEST_EXIT_CODE
-
-        exit $TEST_EXIT_CODE
+        # 2. Run tests using a direct java command
+        java -cp 'libs/*' \
+             -Dselenium.grid.enabled=true \
+             -Dselenium.grid.hubHost=$${HUB_HOST} \
+             -Dbrowser=$${BROWSER} \
+             org.testng.TestNG \
+             -threadcount $${THREAD_COUNT} \
+             test-suites/$${TEST_SUITE}
       "
-
   selenium-hub:
     image: selenium/hub:4.27
     container_name: selenium-hub
