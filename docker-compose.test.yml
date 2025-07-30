@@ -19,7 +19,7 @@ services:
             sleep 1
         done
         echo 'Running tests...'
-        java -cp 'libs/*' -Dselenium.grid.hubHost=$HUB_HOST org.testng.TestNG test-suites/flight-reservation.xml || export EXIT_CODE=$?
+        mvn clean test -Dsurefire.suiteXmlFiles=test-suites/flight-reservation.xml || export EXIT_CODE=$?
         chown -R 1000:1000 target
         exit ${EXIT_CODE:-0}
       "
