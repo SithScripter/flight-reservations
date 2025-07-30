@@ -3,8 +3,8 @@ services:
     image: gaumji19/flight-reservations:latest
     container_name: flight-reservations-tests
     depends_on:
-      - chrome
-      - firefox
+      selenium-hub:
+        condition: service_healthy
     environment:
       - BROWSER=chrome
       - HUB_HOST=selenium-hub
@@ -12,28 +12,26 @@ services:
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
     entrypoint: ""
-    # ✅ FIX 3: Run tests, then change ownership of the reports for Jenkins
     command: >
       sh -c "
-        # Wait for the Grid to be ready
         while ! curl -sSL http://selenium-hub:4444/wd/hub/status | jq -r '.value.ready' | grep 'true' > /dev/null; do
-            echo 'Waiting for the Grid to be ready...'
+            echo 'Waiting for the Grid...'
             sleep 1
         done
-
-        echo 'Selenium Grid is up and running. Running tests...'
-        # Run tests and capture the exit code if it fails
-        java -cp 'libs/*' -Dselenium.grid.hubHost=$${HUB_HOST} org.testng.TestNG test-suites/flight-reservation.xml || EXIT_CODE=$$?
-
-        # Change ownership of generated files to the jenkins user (UID 1000)
+        echo 'Running tests...'
+        java -cp 'libs/*' -Dselenium.grid.hubHost=$HUB_HOST org.testng.TestNG test-suites/flight-reservation.xml || export EXIT_CODE=$?
         chown -R 1000:1000 target
-
-        # Exit with the original test exit code (or 0 if it passed)
-        exit $${EXIT_CODE:-0}
+        exit ${EXIT_CODE:-0}
       "
+
   selenium-hub:
     image: selenium/hub:4.27
     container_name: selenium-hub
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4444/wd/hub/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     ports:
       - "4444:4444"
 
@@ -41,7 +39,8 @@ services:
     image: selenium/node-chrome:4.27
     shm_size: '2g'
     depends_on:
-      - selenium-hub
+      selenium-hub:
+        condition: service_healthy
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
@@ -51,7 +50,8 @@ services:
     image: selenium/node-firefox:4.27
     shm_size: '2g'
     depends_on:
-      - selenium-hub
+      selenium-hub:
+        condition: service_healthy
     environment:
       - SE_EVENT_BUS_HOST=selenium-hub
       - SE_EVENT_BUS_PUBLISH_PORT=4442
