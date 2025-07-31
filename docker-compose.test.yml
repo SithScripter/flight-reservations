@@ -5,13 +5,8 @@ services:
     depends_on:
       - chrome
       - firefox
-    environment:
-      - HUB_HOST=selenium-hub
-      - BROWSER=chrome
-      - THREAD_COUNT=2
-      - TEST_SUITE=regression.xml
-      # ✅ ADDITION: Sets a default environment for local runs, which can be overridden by Jenkins.
-      - ENV=qa
+    # ✅ CHANGE: The environment variables are removed from here.
+    # They will now be provided exclusively by the Jenkinsfile.
     volumes:
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
@@ -27,7 +22,7 @@ services:
 
         echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        # ✅ CHANGE: The -Denv=$${ENV} property is added to the java command to pass the environment name.
+        # 2. This command now correctly uses the variables passed by Jenkins.
         java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' -cp 'libs/*' -Dallure.results.directory=target/allure-results -Denv=$${ENV} -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=$${HUB_HOST} -Dbrowser=$${BROWSER} org.testng.TestNG -parallel tests -threadcount $${THREAD_COUNT} test-suites/$${TEST_SUITE}
       "
   selenium-hub:
