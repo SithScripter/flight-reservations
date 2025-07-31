@@ -10,7 +10,7 @@ services:
       - BROWSER=chrome
       # ✅ You can now control the number of parallel tests from this variable
       - THREAD_COUNT=2
-      - TEST_SUITE=flight-reservation.xml
+      - TEST_SUITE=vendor-portal.xml
     volumes:
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2

@@ -1,5 +1,5 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.1.dtd" >
-<suite name="Vendor-Portal" parallel="tests" thread-count="3">
+<suite name="Vendor-Portal">
     <listeners>
         <listener class-name="com.gaumji.listener.TestListener"/>
     </listeners>
