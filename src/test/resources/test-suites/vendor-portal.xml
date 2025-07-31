@@ -4,24 +4,21 @@
         <listener class-name="com.gaumji.listener.TestListener"/>
     </listeners>
 
-    <test name="user sam - chrome">
-        <parameter name="browser" value="chrome"/>
+    <test name="user sam">
         <parameter name="testDataPath" value="test-data/vendor-portal/sam.json"/>
         <classes>
             <class name="com.gaumji.tests.vendorportal.VendorPortalTest"/>
         </classes>
     </test>
 
-    <test name="user mike - firefox">
-        <parameter name="browser" value="firefox"/>
+    <test name="user mike">
         <parameter name="testDataPath" value="test-data/vendor-portal/mike.json"/>
         <classes>
             <class name="com.gaumji.tests.vendorportal.VendorPortalTest"/>
         </classes>
     </test>
 
-    <test name="user john - chrome">
-        <parameter name="browser" value="chrome"/>
+    <test name="user john">
         <parameter name="testDataPath" value="test-data/vendor-portal/john.json"/>
         <classes>
             <class name="com.gaumji.tests.vendorportal.VendorPortalTest"/>
