@@ -13,7 +13,7 @@ pipeline {
                     withCredentials([
                         usernamePassword(
                             credentialsId: 'dockerhub-creds',
-                            usernameVariable: 'DOCKER_HUB_USR',
+                            usernameVariable: 'DOCKR_HUB_USR',
                             passwordVariable: 'DOCKER_HUB_PSW'
                         )
                     ]) {
@@ -39,7 +39,28 @@ pipeline {
                 sh 'chmod -R 777 target'
 
                 echo "🚀 Launching test environment..."
-                sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
+                script {
+                    try {
+                        // We run the tests, and if they fail, the 'catch' block will still run
+                        sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
+                    } catch (any) {
+                        // This allows us to copy results even if tests fail
+                        echo "Test container finished with a non-zero exit code."
+                        // We mark the build as failed so we can fail it properly later
+                        currentBuild.result = 'FAILURE'
+                    }
+                }
+
+                echo "📂 Copying Allure results from container..."
+                // This command reliably copies the results from the stopped container
+                sh "docker cp flight-reservations-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/"
+
+                script {
+                    // If the tests failed, we formally fail the pipeline now that we have the reports
+                    if (currentBuild.result == 'FAILURE') {
+                        error("Tests failed. See test logs and Allure report for details.")
+                    }
+                }
             }
         }
     }
@@ -48,7 +69,6 @@ pipeline {
         always {
             script {
                 echo "🧪 Generating Allure Report..."
-                // Host diagnostics to ensure results are present
                 sh 'echo "--- Jenkins Workspace Diagnostics ---"'
                 sh 'ls -la target/allure-results/ || true'
 
@@ -66,9 +86,6 @@ pipeline {
                 echo "📤 Cleaning up..."
                 sh 'docker logout || true'
                 cleanWs()
-
-                                // TEMPORARY STEP FOR DEBUGGING THE TRIGGER
-                                error("Forcing build to fail to test the external trigger.")
             }
         }
     }
