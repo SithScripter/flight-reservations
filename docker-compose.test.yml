@@ -5,8 +5,6 @@ services:
     depends_on:
       - chrome
       - firefox
-    # ✅ FIX: The 'environment' section has been removed from this service.
-    # The container will now correctly use the parameters passed in from the Jenkinsfile.
     volumes:
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
@@ -19,11 +17,27 @@ services:
             echo 'Waiting for the Grid to be ready...'
             sleep 1
         done;
-
         echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        # 2. This command now correctly uses the variables passed by Jenkins.
-        java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' -cp 'libs/*' -Dallure.results.directory=target/allure-results -Denv=$${ENV} -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=$${HUB_HOST} -Dbrowser=$${BROWSER} org.testng.TestNG -parallel tests -threadcount $${THREAD_COUNT} test-suites/$${TEST_SUITE}
+        # ✅ ADDITION: Fail fast if essential variables are not set by the CI/CD platform.
+        : \"$${TEST_SUITE:?ERROR: TEST_SUITE variable is not set}\"
+        : \"$${BROWSER:?ERROR: BROWSER variable is not set}\"
+        : \"$${THREAD_COUNT:?ERROR: THREAD_COUNT variable is not set}\"
+        : \"$${ENV:?ERROR: ENV variable is not set}\"
+
+        # 2. Run tests using variables passed from Jenkins.
+        # Quoting variables (e.g., \"$${...}\") is a best practice for safety.
+        java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' \
+             -cp 'libs/*' \
+             -Dallure.results.directory=target/allure-results \
+             -Denv=\"$${ENV}\" \
+             -Dselenium.grid.enabled=true \
+             -Dselenium.grid.hubHost=$${HUB_HOST:-selenium-hub} \
+             -Dbrowser=\"$${BROWSER}\" \
+             org.testng.TestNG \
+             -parallel tests \
+             -threadcount \"$${THREAD_COUNT}\" \
+             \"test-suites/$${TEST_SUITE}\"
       "
   selenium-hub:
     image: selenium/hub:4.27
