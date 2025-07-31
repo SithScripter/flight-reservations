@@ -1,11 +1,11 @@
 pipeline {
     agent any
 
-    // ✅ No changes needed here, your parameter block is correct.
     parameters {
-        choice(name: 'ENV', choices: ['qa', 'staging', 'production'], description: 'Choose the environment to run tests against')
-        choice(name: 'TEST_SUITE', choices: ['flight-reservation.xml', 'vendor-portal.xml', 'regression.xml'], description: 'Choose the suite to run')
-        choice(name: 'BROWSER', choices: ['chrome', 'firefox'], description: 'Browser to run tests')
+        // Provide a default value for automated runs
+        choice(name: 'ENV', choices: ['qa', 'staging', 'production'], defaultValue: 'qa', description: 'Choose the environment to run tests against')
+        choice(name: 'TEST_SUITE', choices: ['flight-reservation.xml', 'vendor-portal.xml', 'regression.xml'], defaultValue: 'regression.xml', description: 'Choose the suite to run')
+        choice(name: 'BROWSER', choices: ['chrome', 'firefox'], defaultValue: 'chrome', description: 'Browser to run tests')
         string(name: 'THREAD_COUNT', defaultValue: '2', description: 'Number of parallel threads')
     }
 
