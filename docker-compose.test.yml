@@ -27,8 +27,12 @@ services:
 
         echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        # 2. Run tests using a direct java command on a single line
+        # 2. Run the tests
         java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' -cp 'libs/*' -Dallure.results.directory=target/allure-results -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=$${HUB_HOST} -Dbrowser=$${BROWSER} org.testng.TestNG -threadcount $${THREAD_COUNT} test-suites/$${TEST_SUITE}
+
+        # 3. ADD THIS DIAGNOSTIC STEP
+        echo '--- DIAGNOSTICS: Listing contents of /home/flight-reservations/target ---'
+        ls -lR /home/flight-reservations/target
       "
   selenium-hub:
     image: selenium/hub:4.27

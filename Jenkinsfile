@@ -66,6 +66,9 @@ pipeline {
                 echo "📤 Cleaning up..."
                 sh 'docker logout || true'
                 cleanWs()
+
+                                // TEMPORARY STEP FOR DEBUGGING THE TRIGGER
+                                error("Forcing build to fail to test the external trigger.")
             }
         }
     }
