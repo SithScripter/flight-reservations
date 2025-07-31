@@ -13,7 +13,6 @@ pipeline {
                     withCredentials([
                         usernamePassword(
                             credentialsId: 'dockerhub-creds',
-                            // ✅ FIX: Corrected DOCKR_HUB_USR to DOCKER_HUB_USR
                             usernameVariable: 'DOCKER_HUB_USR',
                             passwordVariable: 'DOCKER_HUB_PSW'
                         )
@@ -25,7 +24,8 @@ pipeline {
                         sh "docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${IMAGE_TAG} ."
 
                         echo "🚀 Pushing to Docker Hub..."
-                        sh "echo '${DOCKER_HUB_PSW}' | docker login -u '${DOCKER_HUB_USR}' --password-stdin"
+                        // ✅ CHANGE: Updated to a more secure syntax to resolve the Jenkins security warning.
+                        sh script: "docker login -u '${DOCKER_HUB_USR}' --password-stdin", stdin: DOCKER_HUB_PSW
                         sh "docker push ${IMAGE_NAME}:latest"
                         sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
                     }
@@ -65,16 +65,14 @@ pipeline {
         always {
             script {
                 echo "🧪 Generating Allure Report..."
-                sh 'echo "--- Jenkins Workspace Diagnostics ---"'
                 sh 'ls -la target/allure-results/ || true'
 
+                // ✅ CHANGE: Removed the unnecessary 'tool' parameter to resolve the Allure plugin warning.
                 allure(
-                    tool: 'Allure_2.34.1',
                     results: [[path: 'target/allure-results']]
                 )
 
-                echo "📦 Archiving reports..."
-                archiveArtifacts artifacts: 'target/surefire-reports/**/*.*', allowEmptyArchive: true
+                // ✅ CHANGE: Removed the archive step for surefire-reports, as they are not generated.
 
                 echo "🧹 Tearing down test environment..."
                 sh "docker-compose -f docker-compose.test.yml down -v || true"

@@ -9,6 +9,8 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
+
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <selenium.java.version>4.29.0</selenium.java.version>
         <logback.version>1.5.18</logback.version>
         <webdriver.manager.version>5.9.2</webdriver.manager.version>
