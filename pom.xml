@@ -12,7 +12,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <selenium.java.version>4.29.0</selenium.java.version>
         <logback.version>1.5.18</logback.version>
-        <webdriver.manager.version>6.2.0</webdriver.manager.version>
+        <webdriver.manager.version>5.9.2</webdriver.manager.version>
         <testng.version>7.11.0</testng.version>
         <jackson.version>2.18.3</jackson.version>
         <maven.compiler.version>3.14.0</maven.compiler.version>
@@ -169,7 +169,6 @@
         </plugins>
     </build>
 
-    <!-- ✅ Profile for running tests -->
     <profiles>
         <profile>
             <id>with-tests</id>
@@ -188,7 +187,7 @@
                                 -Dallure.results.directory=${project.build.directory}/allure-results
                             </argLine>
                             <systemPropertyVariables>
-                                <browser>firefox</browser>
+                                <browser>chrome</browser>
                                 <selenium.grid.enabled>true</selenium.grid.enabled>
                             </systemPropertyVariables>
                             <suiteXmlFiles>
