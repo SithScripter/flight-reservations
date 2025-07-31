@@ -5,40 +5,46 @@ services:
     depends_on:
       - chrome
       - firefox
+    environment:
+      # ✅ Local defaults — Jenkins will override these if it sets them.
+      - HUB_HOST=selenium-hub
+      - BROWSER=chrome
+      - THREAD_COUNT=2
+      - TEST_SUITE=regression.xml
+      - ENV=qa
     volumes:
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
     entrypoint: ""
     command: >
       sh -c "
-        # 1. Wait for the Grid to be ready
         echo '--- WAITING FOR SELENIUM GRID ---'
         while ! curl -sSL http://selenium-hub:4444/wd/hub/status | jq -r '.value.ready' | grep 'true' > /dev/null; do
             echo 'Waiting for the Grid to be ready...'
             sleep 1
         done;
+
         echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        # ✅ ADDITION: Fail fast if essential variables are not set by the CI/CD platform.
-        : \"$${TEST_SUITE:?ERROR: TEST_SUITE variable is not set}\"
-        : \"$${BROWSER:?ERROR: BROWSER variable is not set}\"
-        : \"$${THREAD_COUNT:?ERROR: THREAD_COUNT variable is not set}\"
-        : \"$${ENV:?ERROR: ENV variable is not set}\"
+        # ✅ Validate critical environment variables
+        [ -z \"$${TEST_SUITE}\" ] && echo 'ERROR: TEST_SUITE is not set' && exit 1
+        [ -z \"$${BROWSER}\" ] && echo 'ERROR: BROWSER is not set' && exit 1
+        [ -z \"$${THREAD_COUNT}\" ] && echo 'ERROR: THREAD_COUNT is not set' && exit 1
+        [ -z \"$${ENV}\" ] && echo 'ERROR: ENV is not set' && exit 1
 
-        # 2. Run tests using variables passed from Jenkins.
-        # Quoting variables (e.g., \"$${...}\") is a best practice for safety.
         java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' \
              -cp 'libs/*' \
              -Dallure.results.directory=target/allure-results \
              -Denv=\"$${ENV}\" \
              -Dselenium.grid.enabled=true \
-             -Dselenium.grid.hubHost=$${HUB_HOST:-selenium-hub} \
+             -Dselenium.grid.hubHost=\"$${HUB_HOST}\" \
              -Dbrowser=\"$${BROWSER}\" \
              org.testng.TestNG \
              -parallel tests \
              -threadcount \"$${THREAD_COUNT}\" \
              \"test-suites/$${TEST_SUITE}\"
       "
+
   selenium-hub:
     image: selenium/hub:4.27
     container_name: selenium-hub
