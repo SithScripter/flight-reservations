@@ -12,7 +12,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <selenium.java.version>4.29.0</selenium.java.version>
         <logback.version>1.5.18</logback.version>
-        <webdriver.manager.version>5.9.2</webdriver.manager.version>
+        <webdriver.manager.version>6.2.0</webdriver.manager.version>
         <testng.version>7.11.0</testng.version>
         <jackson.version>2.18.3</jackson.version>
         <maven.compiler.version>3.14.0</maven.compiler.version>
@@ -22,7 +22,6 @@
         <maven.resources.plugin>3.3.1</maven.resources.plugin>
         <package.directory>${project.build.directory}/docker-resources</package.directory>
         <aspectj.version>1.9.20.1</aspectj.version>
-        <suiteXmlFile>src/test/resources/test-suites/flight-reservation.xml</suiteXmlFile>
         <allure.version>2.24.0</allure.version>
         <allure.maven.plugin.version>2.10.0</allure.maven.plugin.version>
     </properties>
@@ -77,17 +76,6 @@
                     <release>21</release>
                 </configuration>
             </plugin>
-
-            <plugin>
-                <groupId>io.qameta.allure</groupId>
-                <artifactId>allure-maven</artifactId>
-                <version>${allure.maven.plugin.version}</version>
-                <configuration>
-                    <reportDirectory>${project.build.directory}/allure-report</reportDirectory>
-                    <resultsDirectory>${project.build.directory}/allure-results</resultsDirectory>
-                </configuration>
-            </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -105,7 +93,6 @@
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -118,13 +105,9 @@
                         <goals>
                             <goal>test-jar</goal>
                         </goals>
-                        <configuration>
-                            <includes>**/*.class</includes>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
@@ -145,25 +128,6 @@
                             </resources>
                         </configuration>
                     </execution>
-
-                    <execution>
-                        <id>copy-environment-properties</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>copy-resources</goal>
-                        </goals>
-                        <configuration>
-                            <outputDirectory>${project.build.directory}/allure-results</outputDirectory>
-                            <resources>
-                                <resource>
-                                    <directory>src/test/resources/allure-results</directory>
-                                    <includes>
-                                        <include>environment.properties</include>
-                                    </includes>
-                                </resource>
-                            </resources>
-                        </configuration>
-                    </execution>
                 </executions>
             </plugin>
         </plugins>
@@ -173,7 +137,7 @@
         <profile>
             <id>with-tests</id>
             <activation>
-                <activeByDefault>true</activeByDefault> <!-- default: for local use -->
+                <activeByDefault>true</activeByDefault>
             </activation>
             <build>
                 <plugins>
@@ -186,22 +150,15 @@
                                 -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                                 -Dallure.results.directory=${project.build.directory}/allure-results
                             </argLine>
-                            <systemPropertyVariables>
-                                <browser>chrome</browser>
-                                <selenium.grid.enabled>true</selenium.grid.enabled>
-                            </systemPropertyVariables>
                             <suiteXmlFiles>
-                                <suiteXmlFile>${suiteXmlFile}</suiteXmlFile>
+                                <suiteXmlFile>${project.basedir}/src/test/resources/test-suites/regression.xml</suiteXmlFile>
                             </suiteXmlFiles>
-                            <threadCount>4</threadCount>
-                            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-                            <properties>
-                                <property>
-                                    <name>listener</name>
-                                    <value>io.qameta.allure.testng.AllureTestNg</value>
-                                </property>
-                            </properties>
                         </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.qameta.allure</groupId>
+                        <artifactId>allure-maven</artifactId>
+                        <version>${allure.maven.plugin.version}</version>
                     </plugin>
                 </plugins>
             </build>
