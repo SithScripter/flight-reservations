@@ -13,7 +13,8 @@ pipeline {
                     withCredentials([
                         usernamePassword(
                             credentialsId: 'dockerhub-creds',
-                            usernameVariable: 'DOCKR_HUB_USR',
+                            // ✅ FIX: Corrected DOCKR_HUB_USR to DOCKER_HUB_USR
+                            usernameVariable: 'DOCKER_HUB_USR',
                             passwordVariable: 'DOCKER_HUB_PSW'
                         )
                     ]) {
@@ -41,22 +42,17 @@ pipeline {
                 echo "🚀 Launching test environment..."
                 script {
                     try {
-                        // We run the tests, and if they fail, the 'catch' block will still run
                         sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
                     } catch (any) {
-                        // This allows us to copy results even if tests fail
                         echo "Test container finished with a non-zero exit code."
-                        // We mark the build as failed so we can fail it properly later
                         currentBuild.result = 'FAILURE'
                     }
                 }
 
                 echo "📂 Copying Allure results from container..."
-                // This command reliably copies the results from the stopped container
                 sh "docker cp flight-reservations-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/"
 
                 script {
-                    // If the tests failed, we formally fail the pipeline now that we have the reports
                     if (currentBuild.result == 'FAILURE') {
                         error("Tests failed. See test logs and Allure report for details.")
                     }
