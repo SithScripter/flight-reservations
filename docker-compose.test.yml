@@ -8,11 +8,10 @@ services:
     environment:
       - HUB_HOST=selenium-hub
       - BROWSER=chrome
-      - THREAD_COUNT=1
-      # We now need to specify the suite file for the java command
+      # ✅ You can now control the number of parallel tests from this variable
+      - THREAD_COUNT=2
       - TEST_SUITE=flight-reservation.xml
     volumes:
-      # This volume mount is still crucial for getting results back to Jenkins
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
     entrypoint: ""
@@ -27,12 +26,8 @@ services:
 
         echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        # 2. Run the tests
-        java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' -cp 'libs/*' -Dallure.results.directory=target/allure-results -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=$${HUB_HOST} -Dbrowser=$${BROWSER} org.testng.TestNG -threadcount $${THREAD_COUNT} test-suites/$${TEST_SUITE}
-
-        # 3. ADD THIS DIAGNOSTIC STEP
-        echo '--- DIAGNOSTICS: Listing contents of /home/flight-reservations/target ---'
-        ls -lR /home/flight-reservations/target
+        # 2. Run tests with parallelism controlled by an environment variable
+        java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' -cp 'libs/*' -Dallure.results.directory=target/allure-results -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=$${HUB_HOST} -Dbrowser=$${BROWSER} org.testng.TestNG -parallel tests -threadcount $${THREAD_COUNT} test-suites/$${TEST_SUITE}
       "
   selenium-hub:
     image: selenium/hub:4.27

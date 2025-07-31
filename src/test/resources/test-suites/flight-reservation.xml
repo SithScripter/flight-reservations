@@ -1,5 +1,5 @@
 <!DOCTYPE suite SYSTEM "https://testng.org/testng-1.1.dtd" >
-<suite name="Flight-Reservation" parallel="tests" thread-count="2">
+<suite name="Flight-Reservation">
 
     <listeners>
         <listener class-name="com.gaumji.listener.TestListener"/>
