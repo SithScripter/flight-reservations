@@ -25,7 +25,7 @@ pipeline {
                         )
                     ]) {
                         echo "📦 Building JAR and preparing resources..."
-                        sh 'mvn clean package -P!with-tests'
+                        sh 'mvn clean package -DskipTests'
 
                         echo "🐳 Building Docker Image..."
                         sh "docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${IMAGE_TAG} ."

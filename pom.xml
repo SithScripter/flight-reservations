@@ -9,6 +9,7 @@
     <version>1.0-SNAPSHOT</version>
 
     <properties>
+
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <selenium.java.version>4.29.0</selenium.java.version>
         <logback.version>1.5.18</logback.version>
@@ -18,13 +19,16 @@
         <maven.compiler.version>3.14.0</maven.compiler.version>
         <maven.dependency.version>3.8.1</maven.dependency.version>
         <maven.jar.version>3.4.2</maven.jar.version>
+        <maven.surefire.version>3.5.2</maven.surefire.version>
         <maven.resources.plugin>3.3.1</maven.resources.plugin>
         <package.directory>${project.build.directory}/docker-resources</package.directory>
         <aspectj.version>1.9.20.1</aspectj.version>
         <suiteXmlFile>src/test/resources/test-suites/flight-reservation.xml</suiteXmlFile>
+        <skipTests>false</skipTests>
+
+        <!-- ✅ Allure versions -->
         <allure.version>2.24.0</allure.version>
         <allure.maven.plugin.version>2.10.0</allure.maven.plugin.version>
-        <maven.surefire.version>3.5.2</maven.surefire.version>
     </properties>
 
     <dependencies>
@@ -81,6 +85,35 @@
                 <version>${maven.compiler.version}</version>
                 <configuration>
                     <release>21</release>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.version}</version>
+                <configuration>
+                    <skipTests>${skipTests}</skipTests>
+                    <argLine>
+                        -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
+                        -Dallure.results.directory=${project.build.directory}/allure-results
+                    </argLine>
+                    <systemPropertyVariables>
+                        <browser>firefox</browser>
+                        <selenium.grid.enabled>true</selenium.grid.enabled>
+                    </systemPropertyVariables>
+                    <suiteXmlFiles>
+                        <suiteXmlFile>${project.basedir}/src/test/resources/test-suites/flight-reservation.xml</suiteXmlFile>
+                    </suiteXmlFiles>
+                    <threadCount>4</threadCount>
+                    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+
+                    <properties>
+                        <property>
+                            <name>listener</name>
+                            <value>io.qameta.allure.testng.AllureTestNg</value>
+                        </property>
+                    </properties>
                 </configuration>
             </plugin>
 
@@ -170,47 +203,9 @@
                             </resources>
                         </configuration>
                     </execution>
+
                 </executions>
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>with-tests</id>
-            <activation>
-                <activeByDefault>true</activeByDefault>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-surefire-plugin</artifactId>
-                        <version>${maven.surefire.version}</version>
-                        <configuration>
-                            <argLine>
-                                -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
-                                -Dallure.results.directory=${project.build.directory}/allure-results
-                            </argLine>
-                            <systemPropertyVariables>
-                                <browser>firefox</browser>
-                                <selenium.grid.enabled>true</selenium.grid.enabled>
-                            </systemPropertyVariables>
-                            <suiteXmlFiles>
-                                <suiteXmlFile>${project.basedir}/src/test/resources/test-suites/flight-reservation.xml</suiteXmlFile>
-                            </suiteXmlFiles>
-                            <threadCount>4</threadCount>
-                            <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-                            <properties>
-                                <property>
-                                    <name>listener</name>
-                                    <value>io.qameta.allure.testng.AllureTestNg</value>
-                                </property>
-                            </properties>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>
