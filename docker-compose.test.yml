@@ -6,7 +6,6 @@ services:
       - chrome
       - firefox
     environment:
-      # ✅ Local defaults — Jenkins will override these if it sets them.
       - HUB_HOST=selenium-hub
       - BROWSER=chrome
       - THREAD_COUNT=2
@@ -26,23 +25,12 @@ services:
 
         echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        # ✅ Validate critical environment variables
         [ -z \"$${TEST_SUITE}\" ] && echo 'ERROR: TEST_SUITE is not set' && exit 1
         [ -z \"$${BROWSER}\" ] && echo 'ERROR: BROWSER is not set' && exit 1
         [ -z \"$${THREAD_COUNT}\" ] && echo 'ERROR: THREAD_COUNT is not set' && exit 1
         [ -z \"$${ENV}\" ] && echo 'ERROR: ENV is not set' && exit 1
 
-        java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' \
-             -cp 'libs/*' \
-             -Dallure.results.directory=target/allure-results \
-             -Denv=\"$${ENV}\" \
-             -Dselenium.grid.enabled=true \
-             -Dselenium.grid.hubHost=\"$${HUB_HOST}\" \
-             -Dbrowser=\"$${BROWSER}\" \
-             org.testng.TestNG \
-             -parallel tests \
-             -threadcount \"$${THREAD_COUNT}\" \
-             \"test-suites/$${TEST_SUITE}\"
+        java -javaagent:libs/aspectjweaver-1.9.20.1.jar -cp libs/* -Dallure.results.directory=target/allure-results -Denv=\"$${ENV}\" -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=\"$${HUB_HOST}\" -Dbrowser=\"$${BROWSER}\" org.testng.TestNG -parallel tests -threadcount \"$${THREAD_COUNT}\" test-suites/$${TEST_SUITE}
       "
 
   selenium-hub:
