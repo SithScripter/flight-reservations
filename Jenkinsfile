@@ -1,6 +1,14 @@
 pipeline {
     agent any
 
+    // ✅ No changes needed here, your parameter block is correct.
+    parameters {
+        choice(name: 'ENV', choices: ['qa', 'staging', 'production'], description: 'Choose the environment to run tests against')
+        choice(name: 'TEST_SUITE', choices: ['flight-reservation.xml', 'vendor-portal.xml', 'regression.xml'], description: 'Choose the suite to run')
+        choice(name: 'BROWSER', choices: ['chrome', 'firefox'], description: 'Browser to run tests')
+        string(name: 'THREAD_COUNT', defaultValue: '2', description: 'Number of parallel threads')
+    }
+
     environment {
         IMAGE_NAME = "gaumji19/flight-reservations"
         IMAGE_TAG = "${env.BUILD_NUMBER}"
@@ -24,7 +32,6 @@ pipeline {
                         sh "docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${IMAGE_TAG} ."
 
                         echo "🚀 Pushing to Docker Hub..."
-                        // ✅ CORRECTION: Reverted to the 'echo' command that is compatible with your Jenkins environment.
                         sh "echo '${DOCKER_HUB_PSW}' | docker login -u '${DOCKER_HUB_USR}' --password-stdin"
                         sh "docker push ${IMAGE_NAME}:latest"
                         sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
@@ -39,10 +46,18 @@ pipeline {
                 sh 'mkdir -p target/allure-results'
                 sh 'chmod -R 777 target'
 
-                echo "🚀 Launching test environment..."
+                echo "🚀 Launching test environment with the following parameters:"
+                // ✅ CHANGE: Added an echo statement for the new ENV parameter.
+                echo "   Environment: ${params.ENV}"
+                echo "   Test Suite: ${params.TEST_SUITE}"
+                echo "   Browser: ${params.BROWSER}"
+                echo "   Thread Count: ${params.THREAD_COUNT}"
+
                 script {
+                    // ✅ CHANGE: The ENV parameter is now passed to the Docker Compose command.
+                    def command = "ENV=${params.ENV} TEST_SUITE=${params.TEST_SUITE} BROWSER=${params.BROWSER} THREAD_COUNT=${params.THREAD_COUNT} docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
                     try {
-                        sh "docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
+                        sh command
                     } catch (any) {
                         echo "Test container finished with a non-zero exit code."
                         currentBuild.result = 'FAILURE'
@@ -67,12 +82,9 @@ pipeline {
                 echo "🧪 Generating Allure Report..."
                 sh 'ls -la target/allure-results/ || true'
 
-                // ✅ FIX: Removed the unnecessary 'tool' parameter.
                 allure(
                     results: [[path: 'target/allure-results']]
                 )
-
-                // ✅ FIX: Removed the archive step for surefire-reports, as they are not generated.
 
                 echo "🧹 Tearing down test environment..."
                 sh "docker-compose -f docker-compose.test.yml down -v || true"

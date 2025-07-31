@@ -8,9 +8,10 @@ services:
     environment:
       - HUB_HOST=selenium-hub
       - BROWSER=chrome
-      # ✅ You can now control the number of parallel tests from this variable
       - THREAD_COUNT=2
       - TEST_SUITE=regression.xml
+      # ✅ ADDITION: Sets a default environment for local runs, which can be overridden by Jenkins.
+      - ENV=qa
     volumes:
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
@@ -26,8 +27,8 @@ services:
 
         echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        # 2. Run tests with parallelism controlled by an environment variable
-        java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' -cp 'libs/*' -Dallure.results.directory=target/allure-results -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=$${HUB_HOST} -Dbrowser=$${BROWSER} org.testng.TestNG -parallel tests -threadcount $${THREAD_COUNT} test-suites/$${TEST_SUITE}
+        # ✅ CHANGE: The -Denv=$${ENV} property is added to the java command to pass the environment name.
+        java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' -cp 'libs/*' -Dallure.results.directory=target/allure-results -Denv=$${ENV} -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=$${HUB_HOST} -Dbrowser=$${BROWSER} org.testng.TestNG -parallel tests -threadcount $${THREAD_COUNT} test-suites/$${TEST_SUITE}
       "
   selenium-hub:
     image: selenium/hub:4.27
