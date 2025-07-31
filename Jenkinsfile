@@ -25,7 +25,6 @@ pipeline {
                         )
                     ]) {
                         echo "📦 Building JAR and preparing resources..."
-                        // ✅ CHANGE: Added '-P!with-tests' to deactivate the test profile in Maven
                         sh 'mvn clean package -P!with-tests'
 
                         echo "🐳 Building Docker Image..."

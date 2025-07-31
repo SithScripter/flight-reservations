@@ -5,13 +5,13 @@ services:
     depends_on:
       - chrome
       - firefox
+    # ✅ FIX: This block is restored. It makes the variables from Jenkins available inside the container.
     environment:
-      # ✅ Local defaults — Jenkins will override these.
       - HUB_HOST=selenium-hub
-      - BROWSER=chrome
-      - THREAD_COUNT=2
-      - TEST_SUITE=regression.xml
-      - ENV=qa
+      - BROWSER=${BROWSER}
+      - THREAD_COUNT=${THREAD_COUNT}
+      - TEST_SUITE=${TEST_SUITE}
+      - ENV=${ENV}
     volumes:
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
