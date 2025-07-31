@@ -173,7 +173,7 @@
         <profile>
             <id>with-tests</id>
             <activation>
-                <activeByDefault>true</activeByDefault>
+                <activeByDefault>true</activeByDefault> <!-- default: for local use -->
             </activation>
             <build>
                 <plugins>
@@ -191,7 +191,7 @@
                                 <selenium.grid.enabled>true</selenium.grid.enabled>
                             </systemPropertyVariables>
                             <suiteXmlFiles>
-                                <suiteXmlFile>${project.basedir}/src/test/resources/test-suites/flight-reservation.xml</suiteXmlFile>
+                                <suiteXmlFile>${suiteXmlFile}</suiteXmlFile>
                             </suiteXmlFiles>
                             <threadCount>4</threadCount>
                             <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
