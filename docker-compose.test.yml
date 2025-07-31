@@ -5,8 +5,8 @@ services:
     depends_on:
       - chrome
       - firefox
-    # ✅ CHANGE: The environment variables are removed from here.
-    # They will now be provided exclusively by the Jenkinsfile.
+    # ✅ FIX: The 'environment' section has been removed from this service.
+    # The container will now correctly use the parameters passed in from the Jenkinsfile.
     volumes:
       - ./target:/home/flight-reservations/target
       - /var/jenkins_home/.m2:/root/.m2
