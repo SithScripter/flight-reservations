@@ -56,7 +56,7 @@ pipeline {
                                    error("Tests failed for suite ${params.TEST_SUITE} on ${BROWSER}.")
                                } finally {
                                    echo "📂 Copying Allure results from ${BROWSER} container..."
-                                   sh "docker cp ${projectName}-flight-reservations-tests-1:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true"
+                                   sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true"
 
                                    echo "🧹 Tearing down ${BROWSER} test environment..."
                                    sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
