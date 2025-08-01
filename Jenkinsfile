@@ -14,30 +14,23 @@ pipeline {
     }
 
     stages {
-        stage('Build & Push') {
-            steps {
-                script {
-                    withCredentials([
-                        usernamePassword(
-                            credentialsId: 'dockerhub-creds',
-                            usernameVariable: 'DOCKER_HUB_USR',
-                            passwordVariable: 'DOCKER_HUB_PSW'
-                        )
-                    ]) {
-                        echo "📦 Building JAR and preparing resources..."
-                        sh 'mvn clean package -DskipTests'
+                stage('Build & Push') {
+                    steps {
+                        script {
+                            echo "📦 Building JAR and preparing resources..."
+                            sh 'mvn clean package -Dmaven.test.skip=true'
 
-                        echo "🐳 Building Docker Image..."
-                        sh "docker build -t ${IMAGE_NAME}:latest -t ${IMAGE_NAME}:${IMAGE_TAG} ."
+                            echo "🐳 Building Docker Image..."
+                            def app = docker.build("${env.IMAGE_NAME}:${env.IMAGE_TAG}", ".")
 
-                        echo "🚀 Pushing to Docker Hub..."
-                        sh "echo '${DOCKER_HUB_PSW}' | docker login -u '${DOCKER_HUB_USR}' --password-stdin"
-                        sh "docker push ${IMAGE_NAME}:latest"
-                        sh "docker push ${IMAGE_NAME}:${IMAGE_TAG}"
+                            echo "🔐 Logging in and Pushing Docker Images..."
+                            docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
+                                app.push("latest")
+                                app.push("${env.IMAGE_TAG}")
+                            }
+                        }
                     }
                 }
-            }
-        }
 
         stage('Run Tests in Container') {
             steps {
@@ -56,19 +49,13 @@ pipeline {
                     try {
                         sh command
                     } catch (any) {
-                        echo "Test container finished with a non-zero exit code."
-                        currentBuild.result = 'FAILURE'
+                        error("Tests failed. The test container exited with a non-zero code.")
                     }
                 }
 
                 echo "📂 Copying Allure results from container..."
-                sh "docker cp flight-reservations-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/"
+                sh "docker cp flight-reservations-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true"
 
-                script {
-                    if (currentBuild.result == 'FAILURE') {
-                        error("Tests failed. See test logs and Allure report for details.")
-                    }
-                }
             }
         }
     }
@@ -87,8 +74,9 @@ pipeline {
                 sh "docker-compose -f docker-compose.test.yml down -v || true"
 
                 echo "📤 Cleaning up..."
-                sh 'docker logout || true'
                 cleanWs()
+
+                echo "✅ Pipeline completed."
             }
         }
     }
