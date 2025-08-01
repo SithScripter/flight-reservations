@@ -24,7 +24,7 @@
         <package.directory>${project.build.directory}/docker-resources</package.directory>
         <aspectj.version>1.9.20.1</aspectj.version>
         <suiteXmlFile>src/test/resources/test-suites/flight-reservation.xml</suiteXmlFile>
-        <skipTests>false</skipTests>
+        <maven.test.skip>false</maven.test.skip>
 
         <!-- ✅ Allure versions -->
         <allure.version>2.24.0</allure.version>
@@ -93,7 +93,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${maven.surefire.version}</version>
                 <configuration>
-                    <skipTests>${skipTests}</skipTests>
+                    <skipTests>${maven.test.skip}</skipTests>
                     <argLine>
                         -javaagent:"${settings.localRepository}/org/aspectj/aspectjweaver/${aspectj.version}/aspectjweaver-${aspectj.version}.jar"
                         -Dallure.results.directory=${project.build.directory}/allure-results
