@@ -1,11 +1,11 @@
 services:
   flight-reservations:
     image: gaumji19/flight-reservations:latest
-    container_name: flight-reservations-tests
+    # ✅ FIX: Container name is now dynamic to prevent conflicts
+    container_name: ${COMPOSE_PROJECT_NAME}-tests
     depends_on:
       - chrome
       - firefox
-    # ✅ FIX: This block is restored. It makes the variables from Jenkins available inside the container.
     environment:
       - HUB_HOST=selenium-hub
       - BROWSER=${BROWSER}
@@ -26,19 +26,19 @@ services:
 
         echo '--- GRID IS READY, RUNNING TESTS ---'
 
-        # ✅ Validate critical environment variables
+        # Validate critical environment variables
         [ -z \"$${TEST_SUITE}\" ] && echo 'ERROR: TEST_SUITE is not set' && exit 1
         [ -z \"$${BROWSER}\" ] && echo 'ERROR: BROWSER is not set' && exit 1
         [ -z \"$${THREAD_COUNT}\" ] && echo 'ERROR: THREAD_COUNT is not set' && exit 1
         [ -z \"$${ENV}\" ] && echo 'ERROR: ENV is not set' && exit 1
 
-        # ✅ FIX: The entire java command is now on a single line to prevent shell parsing errors.
         java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' -cp 'libs/*' -Dallure.results.directory=target/allure-results -Denv=\"$${ENV}\" -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=\"$${HUB_HOST}\" -Dbrowser=\"$${BROWSER}\" org.testng.TestNG -parallel tests -threadcount \"$${THREAD_COUNT}\" \"test-suites/$${TEST_SUITE}\"
       "
 
   selenium-hub:
     image: selenium/hub:4.27
-    container_name: selenium-hub
+    # ✅ FIX: Container name is now dynamic to prevent conflicts
+    container_name: ${COMPOSE_PROJECT_NAME}-hub
     ports:
       - "4444:4444"
 
