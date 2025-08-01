@@ -39,8 +39,8 @@ services:
     image: selenium/hub:4.27
     # ✅ FIX: Container name is now dynamic to prevent conflicts
     container_name: ${COMPOSE_PROJECT_NAME}-hub
-    ports:
-      - "4444:4444"
+#    ports:
+#      - "4444:4444"
 
   chrome:
     image: selenium/node-chrome:4.27
