@@ -68,7 +68,8 @@ pipeline {
             }
         }
 
-        // # Forcing a clean re-read of the pipeline
+        // Forcing a clean re-read of the pipeline
+        // Forcing a clean re-read of the pipeline
         // This stage runs ONLY if the 'RUN_CROSS_BROWSER' box is UNCHECKED
         stage('Run Single-Browser Suite') {
             when {
