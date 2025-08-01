@@ -18,7 +18,7 @@ pipeline {
                     steps {
                         script {
                             echo "📦 Building JAR and preparing resources..."
-                            sh 'mvn clean package -Dmaven.test.skip=true'
+                            sh 'mvn clean package -DskipTests'
 
                             echo "🐳 Building Docker Image..."
                             def app = docker.build("${env.IMAGE_NAME}:${env.IMAGE_TAG}", ".")
