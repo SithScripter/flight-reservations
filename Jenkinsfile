@@ -8,7 +8,7 @@ pipeline {
         string(name: 'THREAD_COUNT', defaultValue: '2', description: 'Number of parallel threads')
         booleanParam(name: 'RUN_CROSS_BROWSER', defaultValue: false, description: 'Check this box to run on both Chrome and Firefox')
     }
-
+// force the pipeline to run on the latest version of Jenkins
     environment {
         IMAGE_NAME = "gaumji19/flight-reservations"
     }
