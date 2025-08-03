@@ -35,7 +35,7 @@ pipeline {
         stage('Clean Results Directory') {
             steps {
                 echo "🧹 Cleaning up old Allure results from previous builds..."
-                sh 'rm -rf target/allure-results || true'
+                sh 'rm -rf target/allure-results* || true'
                 sh 'mkdir -p target/allure-results'
             }
         }
@@ -64,8 +64,10 @@ pipeline {
                                } catch (any) {
                                    error("Tests failed for suite ${params.TEST_SUITE} on ${BROWSER}.")
                                } finally {
+                                   // ✅ FIX: Copy results to a separate, browser-specific folder to prevent race conditions
                                    echo "📂 Copying Allure results from ${BROWSER} container..."
-                                   sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true"
+                                   sh "mkdir -p ./target/allure-results-${BROWSER}/"
+                                   sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${BROWSER}/ || true"
 
                                    echo "🧹 Tearing down ${BROWSER} test environment..."
                                    sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
@@ -106,6 +108,10 @@ pipeline {
     post {
         always {
             script {
+                // ✅ FIX: Add this block to merge results before generating the report
+                echo "🤝 Merging Allure results from all parallel runs..."
+                sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
+
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
                     allure(results: [[path: 'target/allure-results']], clean: true)
