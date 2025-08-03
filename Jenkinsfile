@@ -108,7 +108,7 @@ pipeline {
             script {
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
-                    allure(results: [[path: 'target/allure-results']])
+                    allure(results: [[path: 'target/allure-results']], clean: true)
                 } else {
                     echo "⚠️ No Allure results found — skipping report generation."
                 }
