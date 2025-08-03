@@ -110,11 +110,13 @@ pipeline {
             script {
                 // ✅ FIX: Add this block to merge results before generating the report
                 echo "🤝 Merging Allure results from all parallel runs..."
-                sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
+                //sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
+                sh 'cp -r target/allure-results-chrome/. target/allure-results/ 2>/dev/null || true'
+                sh 'cp -r target/allure-results-firefox/. target/allure-results/ 2>/dev/null || true'
 
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
-                    allure(results: [[path: 'target/allure-results']], clean: true)
+                    allure(results: [[path: 'target/allure-results']])
                 } else {
                     echo "⚠️ No Allure results found — skipping report generation."
                 }
