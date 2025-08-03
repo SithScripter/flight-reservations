@@ -107,7 +107,11 @@ pipeline {
         always {
             script {
                 echo "🧪 Generating Allure Report..."
-                allure(results: [[path: 'target/allure-results']])
+                if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
+                    allure(results: [[path: 'target/allure-results']])
+                } else {
+                    echo "⚠️ No Allure results found — skipping report generation."
+                }
 
                 echo "🧹 Cleaning up workspace..."
                 cleanWs()
