@@ -42,13 +42,14 @@ public class FlightClassSelectionPage extends AbstractPage {
     @Step("Select random departure and arrival flight classes")
     public void selectFlights() {
         int randomIndex = ThreadLocalRandom.current().nextInt(0, departureFlightClassOptions.size());
-
         // Log selection
         log.info("Selecting flight options at index: {}", randomIndex);
 
         // Click on departure flight class
         departureFlightClassOptions.get(randomIndex).click();
         log.info("Departure flight class selected");
+
+        this.wait.until(ExpectedConditions.elementToBeClickable(arrivalFlightClassOptions.get(randomIndex)));
 
         // Click on arrival flight class using JS
         JavascriptExecutor js = (JavascriptExecutor) driver;
