@@ -31,7 +31,7 @@ pipeline {
                 }
             }
         }
-
+        //force the multibranch pipeline to run scan again
         stage('Clean Results Directory') {
             steps {
                 echo "🧹 Cleaning up old Allure results from previous builds..."
