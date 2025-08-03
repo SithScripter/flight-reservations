@@ -32,6 +32,14 @@ pipeline {
             }
         }
 
+        stage('Clean Results Directory') {
+            steps {
+                echo "🧹 Cleaning up old Allure results from previous builds..."
+                sh 'rm -rf target/allure-results || true'
+                sh 'mkdir -p target/allure-results'
+            }
+        }
+
         // This stage runs ONLY if the 'RUN_CROSS_BROWSER' box is checked
         stage('Run Cross-Browser Suite') {
             when {
@@ -48,9 +56,7 @@ pipeline {
                     stage('Test on ${BROWSER}') {
                         steps {
                            script {
-                               // ✅ FIX: Clean up old results before running tests
-                               echo "🧹 Cleaning up old Allure results for ${BROWSER} run..."
-                               sh 'rm -rf target/allure-results/* || true'
+
                                def projectName = "tests_${BROWSER}_${env.BUILD_NUMBER}"
                                try {
                                    echo "🚀 Launching ${params.TEST_SUITE} on ${BROWSER}..."
@@ -78,9 +84,7 @@ pipeline {
             }
             steps {
                 script {
-                    // ✅ FIX: Clean up old results before running tests
-                    echo "🧹 Cleaning up old Allure results for ${BROWSER} run..."
-                    sh 'rm -rf target/allure-results/* || true'
+
                     def projectName = "tests_single_${env.BUILD_NUMBER}"
                     try {
                         echo "🚀 Launching ${params.TEST_SUITE} on ${params.BROWSER}..."
