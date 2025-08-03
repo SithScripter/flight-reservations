@@ -68,7 +68,6 @@ pipeline {
             }
         }
 
-        // Forcing a clean re-read of the pipeline
         // This stage runs ONLY if the 'RUN_CROSS_BROWSER' box is UNCHECKED
         stage('Run Single-Browser Suite') {
             when {
@@ -76,17 +75,18 @@ pipeline {
             }
             steps {
                 script {
+                    def projectName = "tests_single_${env.BUILD_NUMBER}"
                     try {
                         echo "🚀 Launching ${params.TEST_SUITE} on ${params.BROWSER}..."
-                        sh "ENV=${params.ENV} TEST_SUITE=${params.TEST_SUITE} BROWSER=${params.BROWSER} THREAD_COUNT=${params.THREAD_COUNT} docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
+                        sh "COMPOSE_PROJECT_NAME=${projectName} ENV=${params.ENV} TEST_SUITE=${params.TEST_SUITE} BROWSER=${params.BROWSER} THREAD_COUNT=${params.THREAD_COUNT} docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
                     } catch (any) {
                         error("Tests failed for suite ${params.TEST_SUITE} on ${params.BROWSER}.")
                     } finally {
                         echo "📂 Copying Allure results from container..."
-                        sh "docker cp flight-reservations-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true"
+                        sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true"
 
                         echo "🧹 Tearing down test environment..."
-                        sh "docker-compose -f docker-compose.test.yml down -v || true"
+                        sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                     }
                 }
             }
