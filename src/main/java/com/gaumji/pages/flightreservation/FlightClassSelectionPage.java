@@ -42,24 +42,28 @@ public class FlightClassSelectionPage extends AbstractPage {
     @Step("Select random departure and arrival flight classes")
     public void selectFlights() {
         int randomIndex = ThreadLocalRandom.current().nextInt(0, departureFlightClassOptions.size());
-        // Log selection
         log.info("Selecting flight options at index: {}", randomIndex);
 
-        // Click on departure flight class
-        departureFlightClassOptions.get(randomIndex).click();
-        log.info("Departure flight class selected");
-
-        this.wait.until(ExpectedConditions.elementToBeClickable(arrivalFlightClassOptions.get(randomIndex)));
-
-        // Click on arrival flight class using JS
+        // Get references to the elements
+        WebElement departureFlight = departureFlightClassOptions.get(randomIndex);
+        WebElement arrivalFlight = arrivalFlightClassOptions.get(randomIndex);
         JavascriptExecutor js = (JavascriptExecutor) driver;
-        js.executeScript("arguments[0].click();", arrivalFlightClassOptions.get(randomIndex));
+
+        // ✅ FIX: Wait for the departure flight to be ready, then use a forceful JS click
+        this.wait.until(ExpectedConditions.elementToBeClickable(departureFlight));
+        js.executeScript("arguments[0].click();", departureFlight);
+        log.info("Departure flight class selected via JavaScript");
+
+        // ✅ FIX: Wait for the arrival flight to be ready, then use a forceful JS click
+        this.wait.until(ExpectedConditions.elementToBeClickable(arrivalFlight));
+        js.executeScript("arguments[0].click();", arrivalFlight);
         log.info("Arrival flight class selected via JavaScript");
     }
 
     @Step("Confirm selected flights")
     public void confirmFlights() {
         log.info("Confirming selected flights...");
+        this.wait.until(ExpectedConditions.elementToBeClickable(this.confirmFlightsButton));
         JavascriptExecutor js = (JavascriptExecutor) driver;
         js.executeScript("arguments[0].click();", confirmFlightsButton);
         log.info("Clicked confirm flights button");
