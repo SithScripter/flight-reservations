@@ -48,6 +48,9 @@ pipeline {
                     stage('Test on ${BROWSER}') {
                         steps {
                            script {
+                               // ✅ FIX: Clean up old results before running tests
+                               echo "🧹 Cleaning up old Allure results for ${BROWSER} run..."
+                               sh 'rm -rf target/allure-results/* || true'
                                def projectName = "tests_${BROWSER}_${env.BUILD_NUMBER}"
                                try {
                                    echo "🚀 Launching ${params.TEST_SUITE} on ${BROWSER}..."
@@ -75,6 +78,9 @@ pipeline {
             }
             steps {
                 script {
+                    // ✅ FIX: Clean up old results before running tests
+                    echo "🧹 Cleaning up old Allure results for ${BROWSER} run..."
+                    sh 'rm -rf target/allure-results/* || true'
                     def projectName = "tests_single_${env.BUILD_NUMBER}"
                     try {
                         echo "🚀 Launching ${params.TEST_SUITE} on ${params.BROWSER}..."
