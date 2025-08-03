@@ -14,10 +14,8 @@ pipeline {
     }
 
     stages {
-
-        stages {
-            stage('Clean Workspace') {
-                steps {
+        stage('Clean Workspace') {
+            steps {
                     echo "🧹 Cleaning workspace before build..."
                     cleanWs()
                 }
