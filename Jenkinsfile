@@ -21,7 +21,8 @@ pipeline {
                     sh 'mvn clean package -DskipTests'
 
                     echo "🐳 Building Docker Image..."
-                    def app = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}", ".")
+                    //def app = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}", ".")
+                    def app = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}", "--no-cache .")
 
                     echo "🔐 Logging in and Pushing Docker Images..."
                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
@@ -35,7 +36,7 @@ pipeline {
         stage('Clean Results Directory') {
             steps {
                 echo "🧹 Cleaning up old Allure results from previous builds..."
-                sh 'rm -rf target/allure-results* || true'
+                sh 'rm -rf target/allure-results* target/allure-results-chrome/ target/allure-results-firefox/ || true'
                 sh 'mkdir -p target/allure-results'
             }
         }
@@ -113,6 +114,10 @@ pipeline {
                 //sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
                 sh 'cp -r target/allure-results-chrome/. target/allure-results/ 2>/dev/null || true'
                 sh 'cp -r target/allure-results-firefox/. target/allure-results/ 2>/dev/null || true'
+
+                echo "📋 Debugging Allure results in chrome and firefox folders..."
+                sh 'ls -l target/allure-results-chrome/ || echo "No chrome results"'
+                sh 'ls -l target/allure-results-firefox/ || echo "No firefox results"'
 
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
