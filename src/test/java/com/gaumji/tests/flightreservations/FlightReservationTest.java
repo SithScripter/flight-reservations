@@ -29,7 +29,7 @@ public class FlightReservationTest extends AbstractTest {
 
     @BeforeTest
     @Parameters("testDataPath")
-    public void setParameters(String testDataPath, ITestContext context) {
+    public void setParameters(String testDataPath) {
         log.info("📦 Loading test data from: {}", testDataPath);
 
         // ✅ Attach JSON to Allure
@@ -38,14 +38,14 @@ public class FlightReservationTest extends AbstractTest {
         // ✅ Deserialize into testData object
         this.testData = JsonUtil.getData(testDataPath, FlightReservationTestData.class);
 
-        // ✅ Retrieve the browser from TestNG context
-        String browser = context.getCurrentXmlTest().getParameter("browser");
+        // ✅ FIX: Read the browser name from Java System Properties
+        String browser = System.getProperty("browser");
 
-        // ✅ Label the test with browser for Allure
-        Allure.label("browser", browser);
-
-        // ✅ Log the label info
-        log.info("🧭 Injected Allure browser label: {}", browser);
+        // Add the label if the browser property exists
+        if (browser != null && !browser.isEmpty()) {
+            Allure.label("browser", browser);
+            log.info("🧭 Injected Allure browser label: {}", browser);
+        }
     }
 
     @Attachment(value = "Test Data", type = "application/json")
