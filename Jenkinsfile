@@ -61,24 +61,24 @@ pipeline {
                 stages {
                     stage('Test on ${BROWSER}') {
                         steps {
-                           script {
+                            script {
 
-                               def projectName = "tests_${BROWSER}_${env.BUILD_NUMBER}"
-                               try {
-                                   echo "🚀 Launching ${params.TEST_SUITE} on ${BROWSER}..."
-                                   sh "COMPOSE_PROJECT_NAME=${projectName} ENV=${params.ENV} TEST_SUITE=${params.TEST_SUITE} BROWSER=${BROWSER} THREAD_COUNT=${params.THREAD_COUNT} docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
-                               } catch (any) {
-                                   error("Tests failed for suite ${params.TEST_SUITE} on ${BROWSER}.")
-                               } finally {
-                                   // ✅ FIX: Copy results to a separate, browser-specific folder to prevent race conditions
-                                   echo "📂 Copying Allure results from ${BROWSER} container..."
-                                   sh "mkdir -p ./target/allure-results-${BROWSER}/"
-                                   sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${BROWSER}/ || true"
+                                def projectName = "tests_${BROWSER}_${env.BUILD_NUMBER}"
+                                try {
+                                    echo "🚀 Launching ${params.TEST_SUITE} on ${BROWSER}..."
+                                    sh "COMPOSE_PROJECT_NAME=${projectName} ENV=${params.ENV} TEST_SUITE=${params.TEST_SUITE} BROWSER=${BROWSER} THREAD_COUNT=${params.THREAD_COUNT} docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
+                                } catch (any) {
+                                    error("Tests failed for suite ${params.TEST_SUITE} on ${BROWSER}.")
+                                } finally {
+                                    // ✅ FIX: Copy results to a separate, browser-specific folder to prevent race conditions
+                                    echo "📂 Copying Allure results from ${BROWSER} container..."
+                                    sh "mkdir -p ./target/allure-results-${BROWSER}/"
+                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${BROWSER}/ || true"
 
-                                   echo "🧹 Tearing down ${BROWSER} test environment..."
-                                   sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
-                               }
-                           }
+                                    echo "🧹 Tearing down ${BROWSER} test environment..."
+                                    sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
+                                }
+                            }
                         }
                     }
                 }
@@ -114,28 +114,12 @@ pipeline {
     post {
         always {
             script {
-                echo "🤝 Merging Allure results from all parallel runs..."
-                sh 'cp -r target/allure-results-chrome/. target/allure-results/ 2>/dev/null || true'
-                sh 'cp -r target/allure-results-firefox/. target/allure-results/ 2>/dev/null || true'
+                echo "🤝 Merging Allure test case results from all parallel runs..."
+                sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
-                echo "📝 Creating consolidated Allure environment file..."
-                sh '''
-                ENV_FILE="target/allure-results/environment.properties"
-                rm -f $ENV_FILE
-                touch $ENV_FILE
-
-                if [ -d "target/allure-results-chrome" ]; then
-                    echo "Browser.Chrome=Chrome" >> $ENV_FILE
-                fi
-                if [ -d "target/allure-results-firefox" ]; then
-                    echo "Browser.Firefox=Firefox" >> $ENV_FILE
-                fi
-
-                echo "Execution.Mode=Grid" >> $ENV_FILE
-                echo "Selenium.Grid=true" >> $ENV_FILE
-                echo "Java.Version=21.0.6" >> $ENV_FILE
-                echo "OS=Linux" >> $ENV_FILE
-            '''
+                // ✅ FIX: This smarter script finds and merges the environment files with version details
+                echo "📝 Consolidating environment properties from all runs..."
+                sh 'cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true'
 
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
