@@ -117,8 +117,8 @@ pipeline {
                 echo "🤝 Merging Allure test case results from all parallel runs..."
                 sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
-                // ✅ FIX: This smarter script finds and merges the environment files with version details
                 echo "📝 Consolidating environment properties from all runs..."
+                // ✅ FIX: Added the missing '>' redirection to save the merged file
                 sh 'cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true'
 
                 echo "🧪 Generating Allure Report..."
