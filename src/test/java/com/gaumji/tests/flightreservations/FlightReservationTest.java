@@ -43,8 +43,8 @@ public class FlightReservationTest extends AbstractTest {
 
         // Add the label if the browser property exists
         if (browser != null && !browser.isEmpty()) {
-            Allure.label("browser", browser);
-            log.info("🧭 Injected Allure browser label: {}", browser);
+            Allure.parameter("Browser", browser);
+            log.info("🧭 Injected Allure browser parameter: {}", browser);
         }
     }
 
