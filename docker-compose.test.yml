@@ -31,6 +31,9 @@ services:
         [ -z \"$${BROWSER}\" ] && echo 'ERROR: BROWSER is not set' && exit 1
         [ -z \"$${THREAD_COUNT}\" ] && echo 'ERROR: THREAD_COUNT is not set' && exit 1
         [ -z \"$${ENV}\" ] && echo 'ERROR: ENV is not set' && exit 1
+      
+        # ✅ CLEAN old Allure results from previous runs inside the container
+        rm -rf target/allure-results || true
 
         java -javaagent:'libs/aspectjweaver-1.9.20.1.jar' -cp 'libs/*' -Dallure.results.directory=target/allure-results -Denv=\"$${ENV}\" -Dselenium.grid.enabled=true -Dselenium.grid.hubHost=\"$${HUB_HOST}\" -Dbrowser=\"$${BROWSER}\" org.testng.TestNG -parallel tests -threadcount \"$${THREAD_COUNT}\" \"test-suites/$${TEST_SUITE}\"
       "

@@ -114,13 +114,17 @@ pipeline {
     post {
         always {
             script {
-                sh 'echo "ACTUAL Jenkinsfile revision: $(git rev-parse HEAD)"'
-                echo "🤝 Merging Allure test case results from all parallel runs..."
-                sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
+                echo "🧹 Cleaning up old Allure results..."
+                sh 'rm -rf target/allure-results || true'
+                sh 'mkdir -p target/allure-results'
 
-                echo "📝 Consolidating environment properties from all runs..."
-                // ✅ FIX: Added the missing '>' redirection to save the merged file
-                sh 'cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true'
+                if (params.RUN_CROSS_BROWSER) {
+                    echo "🤝 Merging Allure test results from parallel runs..."
+                    sh 'cp -r target/allure-results-*/* target/allure-results/ 2>/dev/null || true'
+
+                    echo "📝 Consolidating environment.properties files..."
+                    sh 'cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true'
+                }
 
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
@@ -131,8 +135,6 @@ pipeline {
 
                 echo "🧹 Cleaning up workspace..."
                 cleanWs()
-
-                echo "✅ Pipeline completed."
             }
         }
     }
