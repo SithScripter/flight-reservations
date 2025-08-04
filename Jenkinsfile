@@ -32,7 +32,7 @@ pipeline {
                 }
             }
         }
-        //force the multibranch pipeline to run scan again
+        
         stage('Clean Results Directory') {
             steps {
                 echo "🧹 Cleaning up old Allure results from previous builds..."
@@ -109,15 +109,28 @@ pipeline {
     post {
         always {
             script {
-                // ✅ FIX: Add this block to merge results before generating the report
                 echo "🤝 Merging Allure results from all parallel runs..."
-                //sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
                 sh 'cp -r target/allure-results-chrome/. target/allure-results/ 2>/dev/null || true'
                 sh 'cp -r target/allure-results-firefox/. target/allure-results/ 2>/dev/null || true'
 
-                echo "📋 Debugging Allure results in chrome and firefox folders..."
-                sh 'ls -l target/allure-results-chrome/ || echo "No chrome results"'
-                sh 'ls -l target/allure-results-firefox/ || echo "No firefox results"'
+                echo "📝 Creating consolidated Allure environment file..."
+                sh '''
+                ENV_FILE="target/allure-results/environment.properties"
+                rm -f $ENV_FILE
+                touch $ENV_FILE
+
+                if [ -d "target/allure-results-chrome" ]; then
+                    echo "Browser.Chrome=Chrome" >> $ENV_FILE
+                fi
+                if [ -d "target/allure-results-firefox" ]; then
+                    echo "Browser.Firefox=Firefox" >> $ENV_FILE
+                fi
+
+                echo "Execution.Mode=Grid" >> $ENV_FILE
+                echo "Selenium.Grid=true" >> $ENV_FILE
+                echo "Java.Version=21.0.6" >> $ENV_FILE
+                echo "OS=Linux" >> $ENV_FILE
+            '''
 
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
