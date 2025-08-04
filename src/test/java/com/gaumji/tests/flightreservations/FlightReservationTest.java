@@ -12,6 +12,7 @@ import io.qameta.allure.testng.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
+import org.testng.ITestContext;
 import org.testng.annotations.*;
 
 import java.io.InputStream;
@@ -28,7 +29,7 @@ public class FlightReservationTest extends AbstractTest {
 
     @BeforeTest
     @Parameters("testDataPath")
-    public void setParameters(String testDataPath) {
+    public void setParameters(String testDataPath, ITestContext context) {
         log.info("📦 Loading test data from: {}", testDataPath);
 
         // ✅ Attach JSON to Allure
@@ -36,6 +37,15 @@ public class FlightReservationTest extends AbstractTest {
 
         // ✅ Deserialize into testData object
         this.testData = JsonUtil.getData(testDataPath, FlightReservationTestData.class);
+
+        // ✅ Retrieve the browser from TestNG context
+        String browser = context.getCurrentXmlTest().getParameter("browser");
+
+        // ✅ Label the test with browser for Allure
+        Allure.label("browser", browser);
+
+        // ✅ Log the label info
+        log.info("🧭 Injected Allure browser label: {}", browser);
     }
 
     @Attachment(value = "Test Data", type = "application/json")
