@@ -37,15 +37,6 @@ public class FlightReservationTest extends AbstractTest {
 
         // ✅ Deserialize into testData object
         this.testData = JsonUtil.getData(testDataPath, FlightReservationTestData.class);
-
-        // ✅ FIX: Read the browser name from Java System Properties
-        String browser = System.getProperty("browser");
-
-        // Add the label if the browser property exists
-        if (browser != null && !browser.isEmpty()) {
-            Allure.parameter("Browser", browser);
-            log.info("🧭 Injected Allure browser parameter: {}", browser);
-        }
     }
 
     @Attachment(value = "Test Data", type = "application/json")

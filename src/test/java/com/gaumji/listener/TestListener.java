@@ -2,6 +2,7 @@ package com.gaumji.listener;
 
 import com.gaumji.util.AllureEnvironmentWriter;
 import com.gaumji.util.Constants;
+import io.qameta.allure.Allure;
 import io.qameta.allure.Attachment;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
@@ -9,6 +10,14 @@ import org.openqa.selenium.WebDriver;
 import org.testng.*;
 
 public class TestListener implements ITestListener, IExecutionListener {
+
+    @Override
+    public void onTestStart(ITestResult result) {
+        String browser = System.getProperty("browser"); // Correctly reads the system property
+        if (browser != null && !browser.isEmpty()) {
+            Allure.parameter("Browser", browser);
+        }
+    }
 
     @Override
     public void onTestFailure(ITestResult result) {
