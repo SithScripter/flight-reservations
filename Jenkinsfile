@@ -119,7 +119,7 @@ pipeline {
                 sh 'rm -rf target/allure-results || true'
                 sh 'mkdir -p target/allure-results'
 
-                // ✅ STEP 2: Conditionally merge results ONLY for cross-browser runs
+                // ✅ STEP 2: Merge only if running cross-browser
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🤝 Merging Allure results from parallel runs..."
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
@@ -128,7 +128,7 @@ pipeline {
                     sh 'cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true'
                 }
 
-                // ✅ STEP 3: Generate the report from the prepared directory
+                // ✅ STEP 3: Generate the Allure report
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') &&
                         sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
@@ -137,9 +137,11 @@ pipeline {
                     echo "⚠️ No Allure results found — skipping report generation."
                 }
 
-                // ✅ STEP 4: Perform the final workspace cleanup
+                // ✅ STEP 4: Clean the workspace
                 echo "🧹 Cleaning up workspace..."
                 cleanWs()
+
+                echo "✅ Pipeline completed."
             }
         }
     }
