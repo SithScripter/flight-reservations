@@ -114,25 +114,30 @@ pipeline {
     post {
         always {
             script {
-                echo "🧹 Cleaning up old Allure results..."
+                // ✅ STEP 1: Always clean the final results directory
+                echo "🧹 Cleaning up final Allure results directory..."
                 sh 'rm -rf target/allure-results || true'
                 sh 'mkdir -p target/allure-results'
 
+                // ✅ STEP 2: Conditionally merge results ONLY for cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
-                    echo "🤝 Merging Allure test results from parallel runs..."
-                    sh 'cp -r target/allure-results-*/* target/allure-results/ 2>/dev/null || true'
+                    echo "🤝 Merging Allure results from parallel runs..."
+                    sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
-                    echo "📝 Consolidating environment.properties files..."
+                    echo "📝 Consolidating environment.properties from parallel runs..."
                     sh 'cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true'
                 }
 
+                // ✅ STEP 3: Generate the report from the prepared directory
                 echo "🧪 Generating Allure Report..."
-                if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
+                if (fileExists('target/allure-results') &&
+                        sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
                     allure(results: [[path: 'target/allure-results']])
                 } else {
                     echo "⚠️ No Allure results found — skipping report generation."
                 }
 
+                // ✅ STEP 4: Perform the final workspace cleanup
                 echo "🧹 Cleaning up workspace..."
                 cleanWs()
             }
