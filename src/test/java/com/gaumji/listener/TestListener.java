@@ -12,20 +12,6 @@ import org.testng.*;
 public class TestListener implements ITestListener, IExecutionListener {
 
     @Override
-    public void onTestStart(ITestResult result) {
-        // ✅ DEBUG STEP: Add print statements to see if this code is ever reached
-        System.out.println("====== TEST LISTENER: onTestStart method is RUNNING for test: " + result.getMethod().getMethodName() + " ======");
-
-        String browser = System.getProperty("browser");
-        if (browser != null && !browser.isEmpty()) {
-            Allure.parameter("Browser", browser);
-            System.out.println("====== TEST LISTENER: Found browser '" + browser + "' and added it as an Allure parameter. ======");
-        } else {
-            System.out.println("====== TEST LISTENER: System property 'browser' was not found (null or empty). ======");
-        }
-    }
-
-    @Override
     public void onTestFailure(ITestResult result) {
         WebDriver driver = (WebDriver) result.getTestContext().getAttribute(Constants.DRIVER);
         if (driver != null) {

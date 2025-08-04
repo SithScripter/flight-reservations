@@ -6,6 +6,7 @@ import com.gaumji.util.Config;
 import com.gaumji.util.Constants;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import io.qameta.allure.Allure;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
@@ -32,6 +33,14 @@ public abstract class AbstractTest {
     @BeforeSuite
     public void setUpConfiguration() {
         Config.initialize();
+    }
+
+    @BeforeMethod
+    public void addAllureParameters() {
+        String browser = System.getProperty("browser");
+        if (browser != null && !browser.isEmpty()) {
+            Allure.parameter("Browser", browser);
+        }
     }
 
     @BeforeTest
