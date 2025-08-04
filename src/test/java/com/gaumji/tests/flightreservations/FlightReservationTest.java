@@ -54,6 +54,8 @@ public class FlightReservationTest extends AbstractTest {
     @Story("User Sign-Up")
     @Description("Register a user and verify that registration succeeds.")
     public void userRegistrationTest() {
+        // ✅ FIX: Add this line to set the browser parameter for the Allure report
+        setBrowserAsAllureParameter();
         log.info("🛫 Starting user registration test...");
         RegistrationPage registrationPage = new RegistrationPage(driver);
         registrationPage.goTo(Config.get(Constants.FLIGHT_RESERVATION_URL));

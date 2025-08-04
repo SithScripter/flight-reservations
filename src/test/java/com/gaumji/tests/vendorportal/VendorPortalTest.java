@@ -57,6 +57,8 @@ public class VendorPortalTest extends AbstractTest {
     @Severity(SeverityLevel.BLOCKER)
     @Description("Login to the Vendor Portal using provided credentials.")
     public void loginTest() {
+        // ✅ FIX: Add this line to set the browser parameter for the Allure report
+        setBrowserAsAllureParameter();
         log.info("Navigating to Vendor Portal URL: {}", Config.get(Constants.VENDOR_PORTAL_URL));
         loginPage.goTo(Config.get(Constants.VENDOR_PORTAL_URL));
         Assert.assertTrue(loginPage.isAt(), "Login page should be loaded.");

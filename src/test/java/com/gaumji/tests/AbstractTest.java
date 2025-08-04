@@ -35,14 +35,6 @@ public abstract class AbstractTest {
         Config.initialize();
     }
 
-    @BeforeMethod
-    public void addAllureParameters() {
-        String browser = System.getProperty("browser");
-        if (browser != null && !browser.isEmpty()) {
-            Allure.parameter("Browser", browser);
-        }
-    }
-
     @BeforeTest
     public void setDriver(ITestContext ctx) throws MalformedURLException {
         boolean isRemote = Boolean.parseBoolean(Config.get(Constants.GRID_ENABLED));
@@ -101,6 +93,13 @@ public abstract class AbstractTest {
 
         localDriver.manage().window().setSize(new Dimension(1920, 1080));
         return localDriver;
+    }
+
+    public void setBrowserAsAllureParameter(){
+        String browser = System.getProperty("browser");
+        if(browser != null && !browser.isEmpty()){
+            Allure.parameter("Browser", browser);
+        }
     }
 
     @AfterTest
