@@ -17,6 +17,11 @@ pipeline {
         stage('Build & Push') {
             steps {
                 script {
+
+                    // ✅ Forcefully remove old compiled artifacts
+                    echo "🧹 Forcefully cleaning old build artifacts..."
+                    sh 'rm -rf target'
+
                     echo "📦 Building JAR and preparing resources..."
                     sh 'mvn clean package -DskipTests'
 
