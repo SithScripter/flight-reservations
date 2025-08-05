@@ -114,6 +114,7 @@ pipeline {
     post {
         always {
             script {
+                
                 // ✅ Merge only if running cross-browser
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🧹 Cleaning up final Allure results directory for merge..."
