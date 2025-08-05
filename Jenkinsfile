@@ -137,7 +137,7 @@ pipeline {
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
                     // ✅ FIX: Added 'report: false' to prevent the plugin from using its own history cache
-                    allure(results: [[path: 'target/allure-results']], report: false)
+                    allure(results: [[path: 'target/allure-results']])
                 } else {
                     echo "⚠️ No Allure results found — skipping report generation."
                 }
