@@ -115,29 +115,22 @@ pipeline {
     post {
         always {
             script {
+                // This logic now correctly handles both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
-                    echo "🧹 Cleaning final Allure results directory for merge..."
-                    sh 'rm -rf target/allure-results || true'
-                    sh 'mkdir -p target/allure-results'
-
                     echo "🤝 Merging Allure test case results from parallel runs..."
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment properties from parallel runs..."
-                    // ✅ Merges non-browser keys and renumbers Browser.* entries cleanly
+                    // ✅ FIX: This robust script creates unique keys for each browser to prevent overwriting
                     sh '''
                     rm -f target/allure-results/environment.properties || true
-
-                    # Copy shared non-browser keys from chrome or firefox file
-                    if [ -f target/allure-results-chrome/environment.properties ]; then
-                        sed '/^Browser\\./d' target/allure-results-chrome/environment.properties >> target/allure-results/environment.properties
-                    elif [ -f target/allure-results-firefox/environment.properties ]; then
-                        sed '/^Browser\\./d' target/allure-results-firefox/environment.properties >> target/allure-results/environment.properties
-                    fi
-
-                    # ✅ Fix: merge Browser.* lines and retain full value (browser + version)
-                    grep "^Browser\\." target/allure-results-*/environment.properties 2>/dev/null | cut -d'=' -f2- | sort -u | \
-                    awk 'BEGIN {count=1} {print "Browser." count "=" $0; count++}' >> target/allure-results/environment.properties
+                    for dir in target/allure-results-*; do
+                        browser=$(basename "$dir" | cut -d'-' -f3)
+                        if [ -f "$dir/environment.properties" ]; then
+                            # This command adds a prefix like "chrome." or "firefox." to each key
+                            sed "s/^/${browser}./" "$dir/environment.properties" >> target/allure-results/environment.properties
+                        fi
+                    done
                 '''
                 }
 
