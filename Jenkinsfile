@@ -115,7 +115,7 @@ pipeline {
     post {
         always {
             script {
-                // ✅ Merge only if running cross-browser
+                // This logic now correctly handles both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🧹 Cleaning final Allure results directory for merge..."
                     sh 'rm -rf target/allure-results || true'
@@ -125,28 +125,31 @@ pipeline {
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment properties from parallel runs..."
+                    // ✅ FIX: Removed unnecessary backslash escapes for '.'
                     sh '''
-                        cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true
-                    '''
+                    rm -f target/allure-results/environment.properties || true
+                    # Start with common properties from the first file (excluding Browser.)
+                    if [ -f target/allure-results-chrome/environment.properties ]; then
+                        sed '/^Browser./d' target/allure-results-chrome/environment.properties >> target/allure-results/environment.properties
+                    elif [ -f target/allure-results-firefox/environment.properties ]; then
+                        sed '/^Browser./d' target/allure-results-firefox/environment.properties >> target/allure-results/environment.properties
+                    fi
+                    # Collect all Browser.* entries, sort, and renumber sequentially
+                    grep "^Browser." target/allure-results-*/environment.properties 2>/dev/null | sort -u | awk 'BEGIN {count=1} {print "Browser." count "=" $2; count++}' >> target/allure-results/environment.properties
+                '''
                 }
-
-                // (Optional) Debug final result count
-                echo "🔍 Contents of final Allure results directory:"
-                sh 'ls -l target/allure-results || echo "No results found."'
 
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
-                    // ✅ FIX: Added 'report: false' to prevent the plugin from using its own history cache
                     allure(results: [[path: 'target/allure-results']])
                 } else {
                     echo "⚠️ No Allure results found — skipping report generation."
                 }
 
-                // ✅ Final workspace cleanup
                 echo "🧹 Cleaning up workspace..."
                 cleanWs()
 
-                echo "✅ Pipeline completed successfully."
+                echo "✅ Pipeline completed."
             }
         }
     }
