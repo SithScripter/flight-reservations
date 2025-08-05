@@ -117,20 +117,28 @@ pipeline {
             script {
                 // This logic now correctly handles both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
+                    echo "🧹 Cleaning final Allure results directory for merge..."
+                    sh 'rm -rf target/allure-results || true'
+                    sh 'mkdir -p target/allure-results'
+
                     echo "🤝 Merging Allure test case results from parallel runs..."
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment properties from parallel runs..."
-                    // ✅ FIX: This robust script creates unique keys for each browser to prevent overwriting
+                    // ✅ FIX: This robust script creates a clean, readable environment file with renumbered browsers
                     sh '''
+                    # Start with a clean slate
                     rm -f target/allure-results/environment.properties || true
-                    for dir in target/allure-results-*; do
-                        browser=$(basename "$dir" | cut -d'-' -f3)
-                        if [ -f "$dir/environment.properties" ]; then
-                            # This command adds a prefix like "chrome." or "firefox." to each key
-                            sed "s/^/${browser}./" "$dir/environment.properties" >> target/allure-results/environment.properties
-                        fi
-                    done
+                    
+                    # Copy common properties (everything EXCEPT Browser lines) from just one of the files
+                    if [ -f target/allure-results-chrome/environment.properties ]; then
+                        sed '/^Browser./d' target/allure-results-chrome/environment.properties >> target/allure-results/environment.properties
+                    elif [ -f target/allure-results-firefox/environment.properties ]; then
+                        sed '/^Browser./d' target/allure-results-firefox/environment.properties >> target/allure-results/environment.properties
+                    fi
+                    
+                    # Collect ALL Browser.* lines from ALL files, remove duplicates, and renumber them sequentially
+                    grep "^Browser." target/allure-results-*/environment.properties 2>/dev/null | sort -u | awk 'BEGIN {count=1; FS="="} {print "Browser." count "=" $2; count++}' >> target/allure-results/environment.properties
                 '''
                 }
 
