@@ -115,7 +115,13 @@ pipeline {
     post {
         always {
             script {
-                // This logic now correctly handles both single and cross-browser runs
+                echo "📂 Copying Allure results from container..."
+                sh 'docker cp tests_single_180-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true'
+
+                echo "🧹 Cleaning up test environment..."
+                sh 'COMPOSE_PROJECT_NAME=tests_single_180 docker-compose -f docker-compose.test.yml down -v || true'
+
+                // Handle both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🧹 Cleaning final Allure results directory for merge..."
                     sh 'rm -rf target/allure-results || true'
@@ -147,19 +153,32 @@ pipeline {
                         fi
                     fi
                 '''
-
-                    echo "🧪 Generating Allure Report..."
-                    if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
-                        allure(results: [[path: 'target/allure-results']])
-                    } else {
-                        echo "⚠️ No Allure results found — skipping report generation."
-                    }
-
-                    echo "🧹 Cleaning up workspace..."
-                    cleanWs()
-
-                    echo "✅ Pipeline completed."
+                } else {
+                    // Handle single-browser run
+                    echo "📝 Consolidating environment properties for single-browser run..."
+                    sh '''
+                    if [ -f target/allure-results/environment.properties ]; then
+                        # Ensure Browser.* entries are preserved or fallback to a single browser
+                        grep "^Browser\\." target/allure-results/environment.properties 2>/dev/null | cut -d\'=\' -f2- | sort -u | \
+                        awk \'BEGIN {count=1} {print "Browser." count "=" $0; count++}\' > target/allure-results/environment.properties.temp && \
+                        mv target/allure-results/environment.properties.temp target/allure-results/environment.properties
+                    else
+                        echo "Browser.1=unknown $(grep "^Browser\\." target/allure-results-*/environment.properties 2>/dev/null | cut -d\'=\' -f2)" >> target/allure-results/environment.properties
+                    fi
+                '''
                 }
+
+                echo "🧪 Generating Allure Report..."
+                if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
+                    allure(results: [[path: 'target/allure-results']])
+                } else {
+                    echo "⚠️ No Allure results found — skipping report generation."
+                }
+
+                echo "🧹 Cleaning up workspace..."
+                cleanWs()
+
+                echo "✅ Pipeline completed."
             }
         }
     }
