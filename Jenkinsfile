@@ -115,56 +115,29 @@ pipeline {
     post {
         always {
             script {
-                echo "📂 Copying Allure results from container..."
-                sh 'docker cp tests_single_180-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true'
-
-                echo "🧹 Cleaning up test environment..."
-                sh 'COMPOSE_PROJECT_NAME=tests_single_180 docker-compose -f docker-compose.test.yml down -v || true'
-
-                // Handle both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🧹 Cleaning final Allure results directory for merge..."
                     sh 'rm -rf target/allure-results || true'
                     sh 'mkdir -p target/allure-results'
 
-                    echo "🤝 Merging Allure results from parallel runs..."
-                    sh 'cp -r target/allure-results-chrome/. target/allure-results-firefox/. ./target/allure-results/ 2>/dev/null || true'
+                    echo "🤝 Merging Allure test case results from parallel runs..."
+                    sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment properties from parallel runs..."
+                    // ✅ Merges non-browser keys and renumbers Browser.* entries cleanly
                     sh '''
                     rm -f target/allure-results/environment.properties || true
-                    # Start with common properties from the first file (excluding Browser.)
+
+                    # Copy shared non-browser keys from chrome or firefox file
                     if [ -f target/allure-results-chrome/environment.properties ]; then
                         sed '/^Browser\\./d' target/allure-results-chrome/environment.properties >> target/allure-results/environment.properties
                     elif [ -f target/allure-results-firefox/environment.properties ]; then
                         sed '/^Browser\\./d' target/allure-results-firefox/environment.properties >> target/allure-results/environment.properties
                     fi
-                    # Collect all Browser.* entries, sort, and renumber sequentially with full value
-                    if [ -f target/allure-results-chrome/environment.properties ] && [ -f target/allure-results-firefox/environment.properties ]; then
-                        grep "^Browser\\." target/allure-results-*/environment.properties 2>/dev/null | cut -d\'=\' -f2- | sort -u | \
-                        awk \'BEGIN {count=1} {print "Browser." count "=" $0; count++}\' >> target/allure-results/environment.properties
-                    else
-                        # Fallback: Use directory names as browser indicators if properties are incomplete
-                        if [ -d target/allure-results-chrome/ ]; then
-                            echo "Browser.1=chrome $(grep "^Browser\\." target/allure-results-chrome/environment.properties 2>/dev/null | cut -d\'=\' -f2)" >> target/allure-results/environment.properties
-                        fi
-                        if [ -d target/allure-results-firefox/ ]; then
-                            echo "Browser.2=firefox $(grep "^Browser\\." target/allure-results-firefox/environment.properties 2>/dev/null | cut -d\'=\' -f2)" >> target/allure-results/environment.properties
-                        fi
-                    fi
-                '''
-                } else {
-                    // Handle single-browser run
-                    echo "📝 Consolidating environment properties for single-browser run..."
-                    sh '''
-                    if [ -f target/allure-results/environment.properties ]; then
-                        # Ensure Browser.* entries are preserved or fallback to a single browser
-                        grep "^Browser\\." target/allure-results/environment.properties 2>/dev/null | cut -d\'=\' -f2- | sort -u | \
-                        awk \'BEGIN {count=1} {print "Browser." count "=" $0; count++}\' > target/allure-results/environment.properties.temp && \
-                        mv target/allure-results/environment.properties.temp target/allure-results/environment.properties
-                    else
-                        echo "Browser.1=unknown $(grep "^Browser\\." target/allure-results-*/environment.properties 2>/dev/null | cut -d\'=\' -f2)" >> target/allure-results/environment.properties
-                    fi
+
+                    # ✅ Fix: merge Browser.* lines and retain full value (browser + version)
+                    grep "^Browser\\." target/allure-results-*/environment.properties 2>/dev/null | cut -d'=' -f2- | sort -u | \
+                    awk 'BEGIN {count=1} {print "Browser." count "=" $0; count++}' >> target/allure-results/environment.properties
                 '''
                 }
 
