@@ -125,7 +125,9 @@ pipeline {
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment.properties from parallel runs..."
-                    sh 'cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true'
+                    sh '''
+                        cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true
+                       '''
                 }
 
                 // ✅ STEP 3: Generate the Allure report
