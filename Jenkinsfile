@@ -114,13 +114,12 @@ pipeline {
     post {
         always {
             script {
-                // ✅ STEP 1: Always clean the final results directory
-                echo "🧹 Cleaning up final Allure results directory..."
-                sh 'rm -rf target/allure-results || true'
-                sh 'mkdir -p target/allure-results'
-
-                // ✅ STEP 2: Merge only if running cross-browser
+                // ✅ Merge only if running cross-browser
                 if (params.RUN_CROSS_BROWSER) {
+                    echo "🧹 Cleaning up final Allure results directory for merge..."
+                    sh 'rm -rf target/allure-results || true'
+                    sh 'mkdir -p target/allure-results'
+
                     echo "🤝 Merging Allure results from parallel runs..."
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
@@ -130,7 +129,7 @@ pipeline {
                        '''
                 }
 
-                // ✅ STEP 3: Generate the Allure report
+                // ✅ Generate the Allure report
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') &&
                         sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
@@ -139,7 +138,7 @@ pipeline {
                     echo "⚠️ No Allure results found — skipping report generation."
                 }
 
-                // ✅ STEP 4: Clean the workspace
+                // ✅ Clean the workspace
                 echo "🧹 Cleaning up workspace..."
                 cleanWs()
 
