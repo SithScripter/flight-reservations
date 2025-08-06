@@ -115,7 +115,6 @@ pipeline {
     post {
         always {
             script {
-                // This logic now correctly handles both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🧹 Cleaning final Allure results directory for merge..."
                     sh 'rm -rf target/allure-results || true'
@@ -125,12 +124,12 @@ pipeline {
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment properties using Groovy..."
-                    // ✅ FIX: This robust Groovy script replaces the fragile shell script
                     def commonProps = []
                     def browserProps = []
 
-                    // Find all the generated environment files
+                    // Find all the generated environment files using findFiles
                     def envFiles = findFiles(glob: 'target/allure-results-*/environment.properties')
+                    echo "Found environment files: ${envFiles*.path}" // Debug output
 
                     if (envFiles) {
                         // Read common properties from the first file
