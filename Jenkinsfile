@@ -129,7 +129,7 @@ pipeline {
 
                     // Find all the generated environment files using findFiles
                     def envFiles = findFiles(glob: 'target/allure-results-*/environment.properties')
-                    echo "Found environment files: ${envFiles*.path}" // Debug output
+                    echo "Found environment files: ${envFiles.collect { it.path }.join(', ')}" // Corrected debug output
 
                     if (envFiles) {
                         // Read common properties from the first file
@@ -154,6 +154,9 @@ pipeline {
                     // Combine and write the final, clean properties file
                     def finalProps = (commonProps + finalBrowserProps).join('\n')
                     writeFile(file: 'target/allure-results/environment.properties', text: finalProps)
+
+                    // Archive source files for inspection
+                    archiveArtifacts artifacts: 'target/allure-results-*/environment.properties', allowEmptyArchive: true
                 }
 
                 echo "🧪 Generating Allure Report..."
