@@ -121,26 +121,40 @@ pipeline {
                     sh 'rm -rf target/allure-results || true'
                     sh 'mkdir -p target/allure-results'
 
-                    echo "🤝 Merging Allure results from parallel runs..."
+                    echo "🤝 Merging Allure test case results from parallel runs..."
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
-                    echo "📝 Consolidating environment properties from parallel runs..."
-                    // ✅ FIX: This definitive script correctly preserves the full browser name and version
-                    sh '''
-                    # Start with a clean slate
-                    rm -f target/allure-results/environment.properties || true
-                    
-                    # Copy common properties (everything EXCEPT Browser lines) from just one of the files
-                    if [ -f target/allure-results-chrome/environment.properties ]; then
-                        sed '/^Browser./d' target/allure-results-chrome/environment.properties >> target/allure-results/environment.properties
-                    elif [ -f target/allure-results-firefox/environment.properties ]; then
-                        sed '/^Browser./d' target/allure-results-firefox/environment.properties >> target/allure-results/environment.properties
-                    fi
-                    
-                    # Collect ALL Browser.* lines from ALL files, extract the full value after '=', remove duplicates, and renumber
-                    grep "^Browser." target/allure-results-*/environment.properties 2>/dev/null | cut -d'=' -f2- | sort -u | \
-                    awk 'BEGIN {count=1} {print "Browser." count "=" $0; count++}' >> target/allure-results/environment.properties
-                '''
+                    echo "📝 Consolidating environment properties using Groovy..."
+                    // ✅ FIX: This robust Groovy script replaces the fragile shell script
+                    def commonProps = []
+                    def browserProps = []
+
+                    // Find all the generated environment files
+                    def envFiles = findFiles(glob: 'target/allure-results-*/environment.properties')
+
+                    if (envFiles) {
+                        // Read common properties from the first file
+                        def firstFileContent = readFile(envFiles[0].path).trim()
+                        commonProps = firstFileContent.readLines().findAll { !it.startsWith('Browser.') }
+
+                        // Read all browser properties from all files
+                        envFiles.each { file ->
+                            def fileContent = readFile(file.path).trim()
+                            browserProps.addAll(fileContent.readLines().findAll { it.startsWith('Browser.') })
+                        }
+                    }
+
+                    // Remove duplicates and renumber the browser properties
+                    def uniqueBrowserProps = browserProps.unique()
+                    def finalBrowserProps = []
+                    uniqueBrowserProps.eachWithIndex { prop, i ->
+                        def value = prop.split('=', 2)[1]
+                        finalBrowserProps.add("Browser.${i + 1}=${value}")
+                    }
+
+                    // Combine and write the final, clean properties file
+                    def finalProps = (commonProps + finalBrowserProps).join('\n')
+                    writeFile(file: 'target/allure-results/environment.properties', text: finalProps)
                 }
 
                 echo "🧪 Generating Allure Report..."
