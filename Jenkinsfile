@@ -125,7 +125,7 @@ pipeline {
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment properties from parallel runs..."
-                    // ✅ FIX: This robust script creates a clean, readable environment file with renumbered browsers
+                    // ✅ FIX: This definitive script correctly preserves the full browser name and version
                     sh '''
                     # Start with a clean slate
                     rm -f target/allure-results/environment.properties || true
@@ -137,8 +137,9 @@ pipeline {
                         sed '/^Browser./d' target/allure-results-firefox/environment.properties >> target/allure-results/environment.properties
                     fi
                     
-                    # Collect ALL Browser.* lines from ALL files, remove duplicates, and renumber them sequentially
-                    grep "^Browser." target/allure-results-*/environment.properties 2>/dev/null | sort -u | awk 'BEGIN {count=1; FS="="} {print "Browser." count "=" $2; count++}' >> target/allure-results/environment.properties
+                    # Collect ALL Browser.* lines from ALL files, extract full values, remove duplicates, and renumber
+                    grep "^Browser." target/allure-results-*/environment.properties 2>/dev/null | cut -d'=' -f2- | sort -u | \
+                    awk 'BEGIN {count=1} {print "Browser." count "=" $0; count++}' >> target/allure-results/environment.properties
                 '''
                 }
 
