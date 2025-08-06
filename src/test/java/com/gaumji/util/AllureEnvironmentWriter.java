@@ -32,6 +32,7 @@ public class AllureEnvironmentWriter {
     public static void writeEnvironmentInfo() {
         Set<String> browsers = threadBrowsers.get();
         if (browsers == null || browsers.isEmpty()) {
+            System.out.println("⚠️ No browser info available for thread: " + Thread.currentThread().getName());
             return;
         }
 
@@ -41,23 +42,20 @@ public class AllureEnvironmentWriter {
             props.setProperty("Browser." + count, browser);
             count++;
         }
-
+        // Add common properties
         props.setProperty("Selenium.Grid", "true");
         props.setProperty("Execution.Mode", "Grid");
         props.setProperty("OS", os);
         props.setProperty("Java.Version", javaVersion);
 
         try {
-            // ✅ Extract browser name to determine output folder
-            String outputDir = "target/allure-results"; // fallback
-            for (String browser : browsers) {
-                if (browser.toLowerCase().contains("chrome")) {
-                    outputDir = "target/allure-results-chrome";
-                    break;
-                } else if (browser.toLowerCase().contains("firefox")) {
-                    outputDir = "target/allure-results-firefox";
-                    break;
-                }
+            // ✅ Use system property to determine output folder, matching Jenkins matrix
+            String browserName = System.getProperty("browser", "unknown").toLowerCase();
+            String outputDir = "target/allure-results"; // Fallback
+            if (browserName.contains("chrome")) {
+                outputDir = "target/allure-results-chrome";
+            } else if (browserName.contains("firefox")) {
+                outputDir = "target/allure-results-firefox";
             }
 
             File file = new File(outputDir, "environment.properties");
@@ -65,10 +63,10 @@ public class AllureEnvironmentWriter {
             props.store(new FileWriter(file), "Allure environment details");
 
             System.out.println("✅ Environment info written to: " + file.getAbsolutePath());
-
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
+            // ✅ Clean up the thread-local variable to prevent memory leaks.
             threadBrowsers.remove();
         }
     }

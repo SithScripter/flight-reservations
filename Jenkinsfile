@@ -115,6 +115,7 @@ pipeline {
     post {
         always {
             script {
+                // This logic now correctly handles both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🧹 Cleaning final Allure results directory for merge..."
                     sh 'rm -rf target/allure-results || true'
@@ -124,9 +125,10 @@ pipeline {
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment properties from parallel runs..."
+                    // This command will now work correctly because the input files are correct
                     sh '''
-                    cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true
-                '''
+                        cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true
+                    '''
                 }
 
                 echo "🧪 Generating Allure Report..."
