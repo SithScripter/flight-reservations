@@ -115,27 +115,18 @@ pipeline {
     post {
         always {
             script {
-                // This logic now correctly handles both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🧹 Cleaning final Allure results directory for merge..."
                     sh 'rm -rf target/allure-results || true'
                     sh 'mkdir -p target/allure-results'
 
-                    echo "🤝 Merging Allure test case results from parallel runs..."
+                    echo "🤝 Merging Allure results from parallel runs..."
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment properties from parallel runs..."
-                    // ✅ FIX: This robust script creates unique keys for each browser to prevent overwriting
                     sh '''
-                        rm -f target/allure-results/environment.properties || true
-                        for dir in target/allure-results-*; do
-                            browser=$(basename "$dir" | cut -d'-' -f3)
-                            if [ -f "$dir/environment.properties" ]; then
-                                # This command adds a prefix like "chrome." or "firefox." to each key
-                                sed "s/^/${browser}./" "$dir/environment.properties" >> target/allure-results/environment.properties
-                            fi
-                        done
-                    '''
+                    cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true
+                '''
                 }
 
                 echo "🧪 Generating Allure Report..."

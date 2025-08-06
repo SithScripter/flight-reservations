@@ -48,13 +48,27 @@ public class AllureEnvironmentWriter {
         props.setProperty("Java.Version", javaVersion);
 
         try {
-            File file = new File("target/allure-results", "environment.properties");
+            // ✅ Extract browser name to determine output folder
+            String outputDir = "target/allure-results"; // fallback
+            for (String browser : browsers) {
+                if (browser.toLowerCase().contains("chrome")) {
+                    outputDir = "target/allure-results-chrome";
+                    break;
+                } else if (browser.toLowerCase().contains("firefox")) {
+                    outputDir = "target/allure-results-firefox";
+                    break;
+                }
+            }
+
+            File file = new File(outputDir, "environment.properties");
             file.getParentFile().mkdirs();
             props.store(new FileWriter(file), "Allure environment details");
+
+            System.out.println("✅ Environment info written to: " + file.getAbsolutePath());
+
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            // ✅ Clean up the thread-local variable to prevent memory leaks.
             threadBrowsers.remove();
         }
     }
