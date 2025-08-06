@@ -115,48 +115,20 @@ pipeline {
     post {
         always {
             script {
+                // This logic now correctly handles both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🧹 Cleaning final Allure results directory for merge..."
                     sh 'rm -rf target/allure-results || true'
                     sh 'mkdir -p target/allure-results'
 
-                    echo "🤝 Merging Allure test case results from parallel runs..."
+                    echo "🤝 Merging Allure results from parallel runs..."
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
-                    echo "📝 Consolidating environment properties using Groovy..."
-                    def commonProps = []
-                    def browserProps = []
-
-                    // Find all the generated environment files using findFiles
-                    def envFiles = findFiles(glob: 'target/allure-results-*/environment.properties')
-                    echo "Found environment files: ${envFiles.collect { it.path }.join(', ')}" // Corrected debug output
-
-                    if (envFiles) {
-                        // Read common properties from the first file
-                        def firstFileContent = readFile(envFiles[0].path).trim()
-                        commonProps = firstFileContent.readLines().findAll { !it.startsWith('Browser.') }
-
-                        // Read all browser properties from all files
-                        envFiles.each { file ->
-                            def fileContent = readFile(file.path).trim()
-                            browserProps.addAll(fileContent.readLines().findAll { it.startsWith('Browser.') })
-                        }
-                    }
-
-                    // Remove duplicates and renumber the browser properties
-                    def uniqueBrowserProps = browserProps.unique()
-                    def finalBrowserProps = []
-                    uniqueBrowserProps.eachWithIndex { prop, i ->
-                        def value = prop.split('=', 2)[1]
-                        finalBrowserProps.add("Browser.${i + 1}=${value}")
-                    }
-
-                    // Combine and write the final, clean properties file
-                    def finalProps = (commonProps + finalBrowserProps).join('\n')
-                    writeFile(file: 'target/allure-results/environment.properties', text: finalProps)
-
-                    // Archive source files for inspection
-                    archiveArtifacts artifacts: 'target/allure-results-*/environment.properties', allowEmptyArchive: true
+                    echo "📝 Consolidating environment properties from parallel runs..."
+                    // This command will now work correctly because the input files are correct
+                    sh '''
+                        cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true
+                    '''
                 }
 
                 echo "🧪 Generating Allure Report..."

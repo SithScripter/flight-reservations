@@ -7,51 +7,58 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.LinkedHashSet;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
 public class AllureEnvironmentWriter {
 
-    private static final Set<String> usedBrowsers = new LinkedHashSet<>();
-    private static String os = System.getProperty("os.name");
-    private static String javaVersion = System.getProperty("java.version");
-    private static boolean gridEnabled = Boolean.getBoolean("selenium.grid.enabled");
+    // ✅ FIX: Use ThreadLocal to provide separate, safe storage for each parallel thread.
+    private static final ThreadLocal<Set<String>> threadBrowsers = ThreadLocal.withInitial(HashSet::new);
+    private static final String os = System.getProperty("os.name");
+    private static final String javaVersion = System.getProperty("java.version");
 
-    // Collect browser info (instead of writing immediately)
-    public static void writeEnvironmentInfo(RemoteWebDriver driver) {
+    // This method is called by each thread to safely store its own browser information.
+    public static void addBrowserInfo(RemoteWebDriver driver) {
+        if (driver == null) return;
         Capabilities caps = driver.getCapabilities();
         String browser = caps.getBrowserName() + " " + caps.getBrowserVersion();
-        usedBrowsers.add(browser);
-        // ADDED: Debug statement to log the current browser and version
-        System.out.println("Current browser: " + driver.getCapabilities().getBrowserName() + " " + driver.getCapabilities().getBrowserVersion()); // Debug statement
+        threadBrowsers.get().add(browser);
+        // This debug line confirms which browser is being added by which thread.
+        System.out.println("AllureEnvironmentWriter: Adding browser info for thread '" + Thread.currentThread().getName() + "': " + browser);
     }
 
-    // Called once after all tests finish
+    // This is called at the end of each test to write the thread-specific environment file.
     public static void writeEnvironmentInfo() {
-        Properties props = new Properties();
+        Set<String> browsers = threadBrowsers.get();
+        if (browsers == null || browsers.isEmpty()) {
+            return;
+        }
 
+        Properties props = new Properties();
         int count = 1;
-        for (String browser : usedBrowsers) {
+        for (String browser : browsers) {
             props.setProperty("Browser." + count, browser);
             count++;
         }
 
-        props.setProperty("Selenium.Grid", String.valueOf(gridEnabled));
-        props.setProperty("Execution.Mode", gridEnabled ? "Grid" : "Local");
+        props.setProperty("Selenium.Grid", "true");
+        props.setProperty("Execution.Mode", "Grid");
         props.setProperty("OS", os);
         props.setProperty("Java.Version", javaVersion);
 
         try {
-            File file = new File("target/allure-results/environment.properties");
+            File file = new File("target/allure-results", "environment.properties");
             file.getParentFile().mkdirs();
             props.store(new FileWriter(file), "Allure environment details");
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            // ✅ Clean up the thread-local variable to prevent memory leaks.
+            threadBrowsers.remove();
         }
     }
 
-    // ✅ Per-test tagging in Allure
     public static void addBrowserLabel(RemoteWebDriver driver) {
         if (driver != null) {
             Capabilities caps = driver.getCapabilities();

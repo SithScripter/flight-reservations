@@ -38,7 +38,8 @@ public abstract class AbstractTest {
     @BeforeTest
     public void setDriver(ITestContext ctx) throws MalformedURLException {
         boolean isRemote = Boolean.parseBoolean(Config.get(Constants.GRID_ENABLED));
-        String browser = ctx.getCurrentXmlTest().getParameter("browser");
+        // ✅ FIX: Read the browser from the system property, which is passed by Jenkins.
+        String browser = System.getProperty("browser");
         if (browser == null) {
             browser = Config.get(Constants.BROWSER);
         }
@@ -50,38 +51,29 @@ public abstract class AbstractTest {
         ctx.setAttribute(Constants.DRIVER, this.driver);
 
         if (this.driver instanceof RemoteWebDriver remoteDriver) {
-            AllureEnvironmentWriter.writeEnvironmentInfo(remoteDriver);
+            // ✅ FIX: Call the new thread-safe method to add browser info.
+            AllureEnvironmentWriter.addBrowserInfo(remoteDriver);
             AllureEnvironmentWriter.addBrowserLabel(remoteDriver);
         }
     }
 
     protected WebDriver getRemoteDriver(String browser) throws MalformedURLException {
         Capabilities capabilities;
-
         if (browser.equalsIgnoreCase(Constants.FIREFOX)) {
-            FirefoxOptions firefoxOptions = new FirefoxOptions();
-            capabilities = firefoxOptions;
+            capabilities = new FirefoxOptions();
         } else {
-            ChromeOptions chromeOptions = new ChromeOptions();
-            chromeOptions.addArguments("--disable-dev-shm-usage");
-            chromeOptions.addArguments("--no-sandbox");
-            chromeOptions.addArguments("--headless=new"); // Optional: if you don’t need UI
-            capabilities = chromeOptions;
+            capabilities = new ChromeOptions();
         }
-
         String urlFormat = Config.get(Constants.GRID_URL_FORMAT);
         String hubHost = Config.get(Constants.GRID_HUB_HOST);
         String url = String.format(urlFormat, hubHost);
-
         log.info("🔗 Running in remote mode with URL: {}", url);
         log.info("🚀 Launching remote browser: {}", browser);
-
         return new RemoteWebDriver(URI.create(url).toURL(), capabilities);
     }
 
     protected WebDriver getLocalDriver(String browser) {
         log.info("💻 Running in local mode. Browser: {}", browser);
-
         WebDriver localDriver;
         if (browser.equalsIgnoreCase(Constants.FIREFOX)) {
             WebDriverManager.firefoxdriver().setup();
@@ -90,7 +82,6 @@ public abstract class AbstractTest {
             WebDriverManager.chromedriver().setup();
             localDriver = new ChromeDriver();
         }
-
         localDriver.manage().window().setSize(new Dimension(1920, 1080));
         return localDriver;
     }
@@ -102,8 +93,11 @@ public abstract class AbstractTest {
         }
     }
 
+
     @AfterTest
     public void tearDown() {
+        // ✅ FIX: Write the thread-specific environment file at the end of the test.
+        AllureEnvironmentWriter.writeEnvironmentInfo();
         if (this.driver != null) {
             log.info("🧹 Quitting browser session.");
             this.driver.quit();
