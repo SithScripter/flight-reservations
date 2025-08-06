@@ -23,6 +23,8 @@ public class AllureEnvironmentWriter {
         Capabilities caps = driver.getCapabilities();
         String browser = caps.getBrowserName() + " " + caps.getBrowserVersion();
         usedBrowsers.add(browser);
+        // ADDED: Debug statement to log the current browser and version
+        System.out.println("Current browser: " + driver.getCapabilities().getBrowserName() + " " + driver.getCapabilities().getBrowserVersion()); // Debug statement
     }
 
     // Called once after all tests finish
