@@ -76,7 +76,7 @@ pipeline {
                                 } finally {
                                     echo "📂 Copying Allure results from ${BROWSER} container..."
                                     sh "mkdir -p ./target/allure-results-${BROWSER}/"
-                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${BROWSER}/ || true"
+                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results-${BROWSER}/. ./target/allure-results-${BROWSER}/ || true"
 
                                     echo "🧹 Tearing down ${BROWSER} test environment..."
                                     sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
@@ -102,7 +102,8 @@ pipeline {
                         error("Tests failed for suite ${params.TEST_SUITE} on ${params.BROWSER}.")
                     } finally {
                         echo "📂 Copying Allure results from container..."
-                        sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true"
+                        sh "mkdir -p ./target/allure-results-${params.BROWSER}/"
+                        sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results-${params.BROWSER}/. ./target/allure-results-${params.BROWSER}/ || true"
 
                         echo "🧹 Tearing down test environment..."
                         sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
@@ -122,13 +123,24 @@ pipeline {
                     sh 'mkdir -p target/allure-results'
 
                     echo "🤝 Merging Allure results from parallel runs..."
-                    sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
+                    sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || echo "Failed to copy Allure results"'
 
                     echo "📝 Consolidating environment properties from parallel runs..."
-                    // This command will now work correctly because the input files are correct
                     sh '''
-                        cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true
+                        echo "Checking environment files:"
+                        ls -l target/allure-results-*/environment.properties 2>/dev/null || echo "No environment files found"
+                        cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || echo "Failed to concatenate environment files"
+                        echo "Contents of merged environment.properties:"
+                        cat target/allure-results/environment.properties || echo "Merged file is empty"
                     '''
+                } else {
+                    // Handle single-browser run
+                    echo "🧹 Cleaning final Allure results directory for single-browser run..."
+                    sh 'rm -rf target/allure-results || true'
+                    sh 'mkdir -p target/allure-results'
+
+                    echo "📂 Copying single-browser environment properties..."
+                    sh "cp target/allure-results-${params.BROWSER}/environment.properties target/allure-results/environment.properties 2>/dev/null || echo 'No environment file found for ${params.BROWSER}'"
                 }
 
                 echo "🧪 Generating Allure Report..."
