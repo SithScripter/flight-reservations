@@ -121,13 +121,20 @@ pipeline {
                     sh 'rm -rf target/allure-results || true'
                     sh 'mkdir -p target/allure-results'
 
-                    echo "🤝 Merging Allure results from parallel runs..."
+                    echo "🤝 Merging Allure test case results from parallel runs..."
                     sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
                     echo "📝 Consolidating environment properties from parallel runs..."
-                    // This command will now work correctly because the input files are correct
+                    // ✅ FIX: This robust script creates unique keys for each browser to prevent overwriting
                     sh '''
-                        cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || true
+                        rm -f target/allure-results/environment.properties || true
+                        for dir in target/allure-results-*; do
+                            browser=$(basename "$dir" | cut -d'-' -f3)
+                            if [ -f "$dir/environment.properties" ]; then
+                                # This command adds a prefix like "chrome." or "firefox." to each key
+                                sed "s/^/${browser}./" "$dir/environment.properties" >> target/allure-results/environment.properties
+                            fi
+                        done
                     '''
                 }
 
