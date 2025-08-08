@@ -1,15 +1,17 @@
 package com.gaumji.listener;
 
-import com.gaumji.util.AllureEnvironmentWriter;
 import com.gaumji.util.Constants;
-import io.qameta.allure.Allure;
 import io.qameta.allure.Attachment;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
-import org.testng.*;
+import org.testng.ITestListener;
+import org.testng.ITestResult;
+import org.testng.Reporter;
 
-public class TestListener implements ITestListener, IExecutionListener {
+// This listener now only handles test failures (screenshots and logs).
+// It no longer needs to implement IExecutionListener.
+public class TestListener implements ITestListener {
 
     @Override
     public void onTestFailure(ITestResult result) {
@@ -26,12 +28,6 @@ public class TestListener implements ITestListener, IExecutionListener {
 
         // Add failure message to Allure
         saveFailureLogToAllure(result.getThrowable() != null ? result.getThrowable().toString() : "Unknown error");
-    }
-
-    @Override
-    public void onExecutionFinish() {
-        // ✅ Write final aggregated environment details to Allure
-        AllureEnvironmentWriter.writeEnvironmentInfo();
     }
 
     @Attachment(value = "Screenshot", type = "image/png")

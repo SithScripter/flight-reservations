@@ -1,3 +1,6 @@
+// Define a variable to hold the list of browsers we will test against.
+def browsersToTest = []
+
 pipeline {
     agent any
 
@@ -14,6 +17,21 @@ pipeline {
     }
 
     stages {
+        // ✅ NEW STAGE: Prepare dynamic variables before they are needed.
+        stage('Initialize') {
+            steps {
+                script {
+                    echo "Determining which browsers to test..."
+                    if (params.RUN_CROSS_BROWSER) {
+                        browsersToTest = ['chrome', 'firefox']
+                    } else {
+                        browsersToTest = [params.BROWSER]
+                    }
+                    echo "Tests will run on the following browsers: ${browsersToTest}"
+                }
+            }
+        }
+
         stage('Prepare Workspace') {
             steps {
                 echo "🧹 Cleaning up old artifacts..."
@@ -44,8 +62,8 @@ pipeline {
                 axes {
                     axis {
                         name 'BROWSER_AXIS'
-                        // If cross-browser is checked, run on both; otherwise, use the selected browser
-                        values { params.RUN_CROSS_BROWSER ? ['chrome', 'firefox'] : [params.BROWSER] }
+                        // ✅ FIX: Use the pre-defined list. This is valid declarative syntax.
+                        values browsersToTest
                     }
                 }
                 stages {
@@ -55,7 +73,6 @@ pipeline {
                                 def projectName = "tests_${BROWSER_AXIS}_${env.BUILD_NUMBER}"
                                 try {
                                     echo "🚀 Launching ${params.TEST_SUITE} on ${BROWSER_AXIS}..."
-                                    // Using triple-double quotes for a cleaner multi-line shell command
                                     sh """
                                         COMPOSE_PROJECT_NAME=${projectName} \\
                                         ENV=${params.ENV} \\
@@ -67,7 +84,6 @@ pipeline {
                                 } catch (any) {
                                     error("Tests failed for suite ${params.TEST_SUITE} on ${BROWSER_AXIS}.")
                                 } finally {
-                                    // CRITICAL: Each browser's results are copied to a UNIQUE directory. This prevents all race conditions.
                                     echo "📂 Copying Allure results from ${BROWSER_AXIS} container..."
                                     sh "mkdir -p ./target/allure-results-${BROWSER_AXIS}/"
                                     sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${BROWSER_AXIS}/ || true"
@@ -87,8 +103,6 @@ pipeline {
         always {
             script {
                 echo "🧪 Generating Allure Report..."
-                // The Allure plugin will automatically find all 'allure-results-*' directories within 'target' and aggregate them.
-                // This is the simplest, most robust way to generate the report.
                 allure(
                         results: [[path: 'target']],
                         reportBuildPolicy: 'ALWAYS'

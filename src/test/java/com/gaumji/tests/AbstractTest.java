@@ -6,6 +6,7 @@ import com.gaumji.util.Config;
 import com.gaumji.util.Constants;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.github.bonigarcia.wdm.WebDriverManager;
+import io.qameta.allure.Allure;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
@@ -46,6 +47,14 @@ public abstract class AbstractTest {
 
         this.driver = isRemote ? getRemoteDriver(browser) : getLocalDriver(browser);
         ctx.setAttribute(Constants.DRIVER, this.driver);
+    }
+
+    // ✅ THIS METHOD HAS BEEN ADDED BACK
+    public void setBrowserAsAllureParameter() {
+        String browser = System.getProperty("browser");
+        if (browser != null && !browser.isEmpty()) {
+            Allure.parameter("Browser", browser);
+        }
     }
 
     protected WebDriver getRemoteDriver(String browser) throws MalformedURLException {
@@ -89,7 +98,6 @@ public abstract class AbstractTest {
         }
     }
 
-    // This is no longer needed as the environment writer is called in @AfterTest
     @AfterSuite
     public void tearDownSuite() {
         // This method is now empty but can be kept for future suite-level teardown logic.
