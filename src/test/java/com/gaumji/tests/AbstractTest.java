@@ -38,7 +38,7 @@ public abstract class AbstractTest {
     @BeforeTest
     public void setDriver(ITestContext ctx) throws MalformedURLException {
         boolean isRemote = Boolean.parseBoolean(Config.get(Constants.GRID_ENABLED));
-        // ✅ FIX: Read the browser from the system property, which is passed by Jenkins.
+        // ✅ Read the browser from the system property, which is passed by Jenkins.
         String browser = System.getProperty("browser");
         if (browser == null) {
             browser = Config.get(Constants.BROWSER);
@@ -50,10 +50,22 @@ public abstract class AbstractTest {
         this.driver = isRemote ? getRemoteDriver(browser) : getLocalDriver(browser);
         ctx.setAttribute(Constants.DRIVER, this.driver);
 
+        // ✅ Call writeEnvironmentInfo for both remote and local drivers to collect browser data
         if (this.driver instanceof RemoteWebDriver remoteDriver) {
-            // ✅ FIX: Call the new thread-safe method to add browser info.
-            AllureEnvironmentWriter.addBrowserInfo(remoteDriver);
+            AllureEnvironmentWriter.writeEnvironmentInfo(remoteDriver);
             AllureEnvironmentWriter.addBrowserLabel(remoteDriver);
+        } else {
+            // Handle local driver by extracting capabilities
+            Capabilities caps = null;
+            if (driver instanceof ChromeDriver) {
+                caps = ((ChromeDriver) driver).getCapabilities();
+            } else if (driver instanceof FirefoxDriver) {
+                caps = ((FirefoxDriver) driver).getCapabilities();
+            }
+            if (caps != null) {
+                AllureEnvironmentWriter.writeEnvironmentInfo(new RemoteWebDriver(caps));
+                AllureEnvironmentWriter.addBrowserLabel(new RemoteWebDriver(caps));
+            }
         }
     }
 
@@ -86,22 +98,25 @@ public abstract class AbstractTest {
         return localDriver;
     }
 
-    public void setBrowserAsAllureParameter(){
+    public void setBrowserAsAllureParameter() {
         String browser = System.getProperty("browser");
-        if(browser != null && !browser.isEmpty()){
+        if (browser != null && !browser.isEmpty()) {
             Allure.parameter("Browser", browser);
         }
     }
 
-
     @AfterTest
     public void tearDown() {
-        // ✅ FIX: Write the thread-specific environment file at the end of the test.
-        AllureEnvironmentWriter.writeEnvironmentInfo();
         if (this.driver != null) {
             log.info("🧹 Quitting browser session.");
             this.driver.quit();
         }
+    }
+
+    @AfterSuite
+    public void tearDownSuite() {
+        // ✅ Call writeEnvironmentInfo once after all tests to write the aggregated browser data
+        AllureEnvironmentWriter.writeEnvironmentInfo();
     }
 
     @AfterMethod(enabled = false)

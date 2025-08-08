@@ -14,8 +14,6 @@ pipeline {
     }
 
     stages {
-
-        // ✅ FIX: Uses the safest shell command to clean only the Allure plugin's history
         stage('Prepare Workspace') {
             steps {
                 echo "🧹 Cleaning up old Allure report archives from previous builds..."
@@ -76,7 +74,7 @@ pipeline {
                                 } finally {
                                     echo "📂 Copying Allure results from ${BROWSER} container..."
                                     sh "mkdir -p ./target/allure-results-${BROWSER}/"
-                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results-${BROWSER}/. ./target/allure-results-${BROWSER}/"
+                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${BROWSER}/ || true"
 
                                     echo "🧹 Tearing down ${BROWSER} test environment..."
                                     sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
@@ -102,8 +100,7 @@ pipeline {
                         error("Tests failed for suite ${params.TEST_SUITE} on ${params.BROWSER}.")
                     } finally {
                         echo "📂 Copying Allure results from container..."
-                        sh "mkdir -p ./target/allure-results-${params.BROWSER}/"
-                        sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results-${params.BROWSER}/. ./target/allure-results-${params.BROWSER}/"
+                        sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true"
 
                         echo "🧹 Tearing down test environment..."
                         sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
@@ -121,45 +118,37 @@ pipeline {
                     sh 'rm -rf target/allure-results || true'
                     sh 'mkdir -p target/allure-results'
 
-                    echo "🤝 Merging Allure results from parallel runs..."
-                    sh '''
-                        echo "Copying results from per-browser directories..."
-                        cp -r target/allure-results-*/. ./target/allure-results/ || { echo "Failed to copy Allure results"; exit 1; }
-                        echo "Verifying copied files:"
-                        ls -l target/allure-results/
-                    '''
+                    echo "🤝 Merging Allure JSON results from both browsers..."
+                    sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
 
-                    echo "📝 Consolidating environment properties from parallel runs..."
+                    echo "📝 Building merged environment.properties..."
                     sh '''
-                        echo "# Consolidated Environment Properties" > target/allure-results/environment.properties
-                        echo "Merging browser entries..."
-                        grep "Browser" target/allure-results-*/environment.properties | sort -u >> target/allure-results/environment.properties
-                        echo "Merging other properties from chrome results..."
-                        grep -v "Browser" target/allure-results-chrome/environment.properties >> target/allure-results/environment.properties || echo "Warning: Chrome properties not found, using firefox instead" && grep -v "Browser" target/allure-results-firefox/environment.properties >> target/allure-results/environment.properties
-                        echo "Contents of merged environment.properties:"
-                        cat target/allure-results/environment.properties || echo "Merged file is empty"
+                        echo "# Merged Allure Environment" > target/allure-results/environment.properties
+                        # Merge browser lines without filenames (-h), sort to ensure Chrome first, and ensure unique entries
+                        grep -h "^Browser" target/allure-results-*/environment.properties 2>/dev/null | sort -t'=' -k2 -u >> target/allure-results/environment.properties
+                        # Add the rest of the properties from the first env file found (excluding Browser lines)
+                        FIRST_ENV=$(ls target/allure-results-*/environment.properties 2>/dev/null | head -n 1 || true)
+                        if [ -n "$FIRST_ENV" ]; then
+                            grep -v "^Browser" "$FIRST_ENV" >> target/allure-results/environment.properties
+                        fi
+                        echo "Final merged environment.properties:"
+                        cat target/allure-results/environment.properties
                     '''
-                } else {
-                    echo "🧹 Cleaning final Allure results directory for single-browser run..."
-                    sh 'rm -rf target/allure-results || true'
-                    sh 'mkdir -p target/allure-results'
-
-                    echo "📂 Copying single-browser environment properties..."
-                    sh "cp target/allure-results-${params.BROWSER}/environment.properties target/allure-results/environment.properties || echo 'No environment file found for ${params.BROWSER}'"
                 }
+
+                echo "🔍 Contents of final Allure results directory:"
+                sh 'ls -l target/allure-results || echo "No results found."'
 
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
-                    allure(results: [[path: 'target/allure-results']])
+                    allure(results: [[path: 'target/allure-results']], report: false)
                 } else {
-                    echo "⚠️ No Allure results found — skipping report generation. Contents of target/allure-results:"
-                    sh 'ls -l target/allure-results/ || echo "Directory is empty"'
+                    echo "⚠️ No Allure results found — skipping report generation."
                 }
 
                 echo "🧹 Cleaning up workspace..."
                 cleanWs()
-
-                echo "✅ Pipeline completed."
+                echo "✅ Pipeline completed successfully."
             }
         }
     }
