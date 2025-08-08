@@ -97,7 +97,7 @@ pipeline {
             }
         }
     }
-
+    //force jenkins mulibranch to detect changes in the repository
     post {
         always {
             script {
