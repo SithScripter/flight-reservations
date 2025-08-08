@@ -101,15 +101,19 @@ pipeline {
     post {
         always {
             script {
+                // Merge allure-results from all browsers into a single target/allure-results
+                sh "rm -rf target/allure-results"
+                sh "mkdir -p target/allure-results"
+                sh "find target/allure-results-* -type f -exec cp {} target/allure-results/ \\; || true"
+
                 echo "🧪 Generating Allure Report..."
                 allure(
-                        results: [[path: 'target']],
+                        results: [[path: 'target/allure-results']],
                         reportBuildPolicy: 'ALWAYS'
                 )
 
                 echo "🧹 Final workspace cleanup..."
                 cleanWs()
-
                 echo "✅ Pipeline completed successfully."
             }
         }
