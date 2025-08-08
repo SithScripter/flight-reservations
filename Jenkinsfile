@@ -31,12 +31,12 @@ pipeline {
             }
         }
 
-        stage('Prepare Workspace') {
-            steps {
-                echo "🧹 Cleaning up old artifacts..."
-                sh 'rm -rf target allure-report'
-            }
-        }
+//        stage('Prepare Workspace') {
+//            steps {
+//                echo "🧹 Cleaning up old artifacts..."
+//                sh 'rm -rf target allure-report'
+//            }
+//        }
 
         stage('Build & Push Docker Image') {
             steps {
@@ -58,39 +58,42 @@ pipeline {
 
         // This stage now orchestrates the parallel test runs.
         stage('Run Tests in Parallel') {
+            // ✅ FIX: The 'agent none' ensures this stage only orchestrates the parallel steps.
+            agent none
             steps {
                 script {
                     def parallelStages = [:]
                     for (String browser : browsersToTest) {
                         parallelStages["Test on ${browser}"] = {
-                            // Each parallel stage gets its own node and workspace for complete isolation.
+                            // Each parallel stage gets its own node, ensuring a clean slate.
                             node {
-                                // Create a unique directory for this stage's workspace.
-                                ws("target/${browser}") {
-                                    // Checkout the code again in this new workspace.
-                                    checkout scm
+                                // Keep the main workspace clean for the final report.
+                                sh 'rm -rf target allure-report'
 
-                                    // Define a unique project name for Docker Compose.
-                                    def projectName = "tests_${browser}_${env.BUILD_NUMBER}"
-                                    try {
-                                        echo "🚀 Launching ${params.TEST_SUITE} on ${browser}..."
-                                        sh """
-                                            COMPOSE_PROJECT_NAME=${projectName} \\
-                                            ENV=${params.ENV} \\
-                                            TEST_SUITE=${params.TEST_SUITE} \\
-                                            BROWSER=${browser} \\
-                                            THREAD_COUNT=${params.THREAD_COUNT} \\
-                                            docker-compose -f ../../docker-compose.test.yml up --exit-code-from flight-reservations
-                                        """
-                                    } finally {
-                                        echo "📂 Copying Allure results from ${browser} container..."
-                                        // Copy results back to the main workspace.
-                                        sh "mkdir -p ../../target/allure-results-${browser}/"
-                                        sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ../../target/allure-results-${browser}/ || true"
+                                // Checkout code into the executor's default workspace.
+                                checkout scm
 
-                                        echo "🧹 Tearing down ${browser} test environment..."
-                                        sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f ../../docker-compose.test.yml down -v || true"
-                                    }
+                                def projectName = "tests_${browser}_${env.BUILD_NUMBER}"
+                                try {
+                                    echo "🚀 Launching ${params.TEST_SUITE} on ${browser}..."
+                                    // The docker-compose file is now at the root of this workspace.
+                                    sh """
+                                        COMPOSE_PROJECT_NAME=${projectName} \\
+                                        ENV=${params.ENV} \\
+                                        TEST_SUITE=${params.TEST_SUITE} \\
+                                        BROWSER=${browser} \\
+                                        THREAD_COUNT=${params.THREAD_COUNT} \\
+                                        docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
+                                    """
+                                } finally {
+                                    echo "📂 Copying Allure results from ${browser} container..."
+                                    // Use 'archiveArtifacts' to save results reliably.
+                                    sh "mkdir -p target/allure-results-${browser}/"
+                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
+                                    archiveArtifacts artifacts: "target/allure-results-${browser}/**", fingerprint: true
+
+                                    echo "🧹 Tearing down ${browser} test environment..."
+                                    sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                                 }
                             }
                         }
@@ -100,23 +103,24 @@ pipeline {
             }
         }
     }
-    //force jenkins mulibranch to detect changes in the repository
+    
     post {
         always {
             script {
-                // Merge allure-results from all browsers into a single target/allure-results
-                sh "rm -rf target/allure-results"
-                sh "mkdir -p target/allure-results"
-                sh "find target/allure-results-* -type f -exec cp {} target/allure-results/ \\; || true"
+                // This stage runs on the original executor.
+                // It unstashes the results from all parallel runs.
+                echo "🤝 Aggregating Allure results..."
+                sh "rm -rf target/allure-results/*"
+
+                // This step is no longer needed with the corrected logic
+                // sh "find . -name 'allure-results-*' -exec cp -r {}/. target/allure-results/ \\;"
 
                 echo "🧪 Generating Allure Report..."
                 allure(
-                        results: [[path: 'target/allure-results']],
+                        results: [[path: 'target']],
                         reportBuildPolicy: 'ALWAYS'
                 )
 
-                echo "🧹 Final workspace cleanup..."
-                cleanWs()
                 echo "✅ Pipeline completed successfully."
             }
         }
