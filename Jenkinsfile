@@ -17,7 +17,6 @@ pipeline {
     }
 
     stages {
-        // ✅ NEW STAGE: Prepare dynamic variables before they are needed.
         stage('Initialize') {
             steps {
                 script {
@@ -57,43 +56,43 @@ pipeline {
             }
         }
 
+        // ✅ REVISED STAGE: Using the standard 'parallel' step for maximum reliability.
         stage('Run Tests') {
-            matrix {
-                axes {
-                    axis {
-                        name 'BROWSER_AXIS'
-                        // ✅ FIX: Use the pre-defined list. This is valid declarative syntax.
-                        values browsersToTest
-                    }
-                }
-                stages {
-                    stage('Test on ${BROWSER_AXIS}') {
-                        steps {
-                            script {
-                                def projectName = "tests_${BROWSER_AXIS}_${env.BUILD_NUMBER}"
-                                try {
-                                    echo "🚀 Launching ${params.TEST_SUITE} on ${BROWSER_AXIS}..."
-                                    sh """
-                                        COMPOSE_PROJECT_NAME=${projectName} \\
-                                        ENV=${params.ENV} \\
-                                        TEST_SUITE=${params.TEST_SUITE} \\
-                                        BROWSER=${BROWSER_AXIS} \\
-                                        THREAD_COUNT=${params.THREAD_COUNT} \\
-                                        docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
-                                    """
-                                } catch (any) {
-                                    error("Tests failed for suite ${params.TEST_SUITE} on ${BROWSER_AXIS}.")
-                                } finally {
-                                    echo "📂 Copying Allure results from ${BROWSER_AXIS} container..."
-                                    sh "mkdir -p ./target/allure-results-${BROWSER_AXIS}/"
-                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${BROWSER_AXIS}/ || true"
+            steps {
+                script {
+                    // Create an empty map to hold our dynamically generated parallel stages.
+                    def parallelStages = [:]
 
-                                    echo "🧹 Tearing down ${BROWSER_AXIS} test environment..."
-                                    sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
-                                }
+                    // Loop through the list of browsers determined in the 'Initialize' stage.
+                    for (String browser : browsersToTest) {
+                        // The key of the map becomes the name of the parallel stage.
+                        parallelStages["Test on ${browser}"] = {
+                            // The value of the map is a closure containing the steps for that stage.
+                            def projectName = "tests_${browser}_${env.BUILD_NUMBER}"
+                            try {
+                                echo "🚀 Launching ${params.TEST_SUITE} on ${browser}..."
+                                sh """
+                                    COMPOSE_PROJECT_NAME=${projectName} \\
+                                    ENV=${params.ENV} \\
+                                    TEST_SUITE=${params.TEST_SUITE} \\
+                                    BROWSER=${browser} \\
+                                    THREAD_COUNT=${params.THREAD_COUNT} \\
+                                    docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
+                                """
+                            } catch (any) {
+                                error("Tests failed for suite ${params.TEST_SUITE} on ${browser}.")
+                            } finally {
+                                echo "📂 Copying Allure results from ${browser} container..."
+                                sh "mkdir -p ./target/allure-results-${browser}/"
+                                sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${browser}/ || true"
+
+                                echo "🧹 Tearing down ${browser} test environment..."
+                                sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                             }
                         }
                     }
+                    // This command executes all the stages we defined in the map in parallel.
+                    parallel parallelStages
                 }
             }
         }
