@@ -7,28 +7,31 @@ import org.openqa.selenium.remote.RemoteWebDriver;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
 public class AllureEnvironmentWriter {
 
-    // ✅ FIX: Use ThreadLocal to provide separate, safe storage for each parallel thread.
+    // ✅ Use ThreadLocal for thread-specific storage and synchronized global set for all browsers
     private static final ThreadLocal<Set<String>> threadBrowsers = ThreadLocal.withInitial(HashSet::new);
+    private static final Set<String> allBrowsers = Collections.synchronizedSet(new HashSet<>());
+
     private static final String os = System.getProperty("os.name");
+    private static final String osVersion = System.getProperty("os.version");
+    private static final String osArch = System.getProperty("os.arch");
     private static final String javaVersion = System.getProperty("java.version");
 
-    // This method is called by each thread to safely store its own browser information.
     public static void addBrowserInfo(RemoteWebDriver driver) {
         if (driver == null) return;
         Capabilities caps = driver.getCapabilities();
         String browser = caps.getBrowserName() + " " + caps.getBrowserVersion();
         threadBrowsers.get().add(browser);
-        // This debug line confirms which browser is being added by which thread.
+        allBrowsers.add(browser);
         System.out.println("AllureEnvironmentWriter: Adding browser info for thread '" + Thread.currentThread().getName() + "': " + browser);
     }
 
-    // This is called at the end of each test to write the thread-specific environment file.
     public static void writeEnvironmentInfo() {
         Set<String> browsers = threadBrowsers.get();
         if (browsers == null || browsers.isEmpty()) {
@@ -38,20 +41,25 @@ public class AllureEnvironmentWriter {
 
         Properties props = new Properties();
         int count = 1;
-        for (String browser : browsers) {
+        for (String browser : allBrowsers) { // Use global set to include all browsers
             props.setProperty("Browser." + count, browser);
             count++;
         }
+
         // Add common properties
         props.setProperty("Selenium.Grid", "true");
         props.setProperty("Execution.Mode", "Grid");
         props.setProperty("OS", os);
+        props.setProperty("OS.Version", osVersion);
+        props.setProperty("OS.Arch", osArch);
         props.setProperty("Java.Version", javaVersion);
+        props.setProperty("Environment", System.getProperty("env", "qa"));
+        props.setProperty("Test.Suite", System.getProperty("TEST_SUITE", "regression.xml"));
+        props.setProperty("Thread.Count", System.getProperty("THREAD_COUNT", "2"));
 
         try {
-            // ✅ Use system property to determine output folder, matching Jenkins matrix
             String browserName = System.getProperty("browser", "unknown").toLowerCase();
-            String outputDir = "target/allure-results"; // Fallback
+            String outputDir = "target/allure-results";
             if (browserName.contains("chrome")) {
                 outputDir = "target/allure-results-chrome";
             } else if (browserName.contains("firefox")) {
@@ -66,7 +74,6 @@ public class AllureEnvironmentWriter {
         } catch (IOException e) {
             e.printStackTrace();
         } finally {
-            // ✅ Clean up the thread-local variable to prevent memory leaks.
             threadBrowsers.remove();
         }
     }

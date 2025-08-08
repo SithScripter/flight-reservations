@@ -76,7 +76,7 @@ pipeline {
                                 } finally {
                                     echo "📂 Copying Allure results from ${BROWSER} container..."
                                     sh "mkdir -p ./target/allure-results-${BROWSER}/"
-                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results-${BROWSER}/. ./target/allure-results-${BROWSER}/ || true"
+                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results-${BROWSER}/. ./target/allure-results-${BROWSER}/"
 
                                     echo "🧹 Tearing down ${BROWSER} test environment..."
                                     sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
@@ -103,7 +103,7 @@ pipeline {
                     } finally {
                         echo "📂 Copying Allure results from container..."
                         sh "mkdir -p ./target/allure-results-${params.BROWSER}/"
-                        sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results-${params.BROWSER}/. ./target/allure-results-${params.BROWSER}/ || true"
+                        sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results-${params.BROWSER}/. ./target/allure-results-${params.BROWSER}/"
 
                         echo "🧹 Tearing down test environment..."
                         sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
@@ -116,38 +116,44 @@ pipeline {
     post {
         always {
             script {
-                // This logic now correctly handles both single and cross-browser runs
                 if (params.RUN_CROSS_BROWSER) {
                     echo "🧹 Cleaning final Allure results directory for merge..."
                     sh 'rm -rf target/allure-results || true'
                     sh 'mkdir -p target/allure-results'
 
                     echo "🤝 Merging Allure results from parallel runs..."
-                    sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || echo "Failed to copy Allure results"'
+                    sh '''
+                        echo "Copying results from per-browser directories..."
+                        cp -r target/allure-results-*/. ./target/allure-results/ || { echo "Failed to copy Allure results"; exit 1; }
+                        echo "Verifying copied files:"
+                        ls -l target/allure-results/
+                    '''
 
                     echo "📝 Consolidating environment properties from parallel runs..."
                     sh '''
-                        echo "Checking environment files:"
-                        ls -l target/allure-results-*/environment.properties 2>/dev/null || echo "No environment files found"
-                        cat target/allure-results-*/environment.properties > target/allure-results/environment.properties 2>/dev/null || echo "Failed to concatenate environment files"
+                        echo "# Consolidated Environment Properties" > target/allure-results/environment.properties
+                        echo "Merging browser entries..."
+                        grep "Browser" target/allure-results-*/environment.properties | sort -u >> target/allure-results/environment.properties
+                        echo "Merging other properties from chrome results..."
+                        grep -v "Browser" target/allure-results-chrome/environment.properties >> target/allure-results/environment.properties || echo "Warning: Chrome properties not found, using firefox instead" && grep -v "Browser" target/allure-results-firefox/environment.properties >> target/allure-results/environment.properties
                         echo "Contents of merged environment.properties:"
                         cat target/allure-results/environment.properties || echo "Merged file is empty"
                     '''
                 } else {
-                    // Handle single-browser run
                     echo "🧹 Cleaning final Allure results directory for single-browser run..."
                     sh 'rm -rf target/allure-results || true'
                     sh 'mkdir -p target/allure-results'
 
                     echo "📂 Copying single-browser environment properties..."
-                    sh "cp target/allure-results-${params.BROWSER}/environment.properties target/allure-results/environment.properties 2>/dev/null || echo 'No environment file found for ${params.BROWSER}'"
+                    sh "cp target/allure-results-${params.BROWSER}/environment.properties target/allure-results/environment.properties || echo 'No environment file found for ${params.BROWSER}'"
                 }
 
                 echo "🧪 Generating Allure Report..."
                 if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
                     allure(results: [[path: 'target/allure-results']])
                 } else {
-                    echo "⚠️ No Allure results found — skipping report generation."
+                    echo "⚠️ No Allure results found — skipping report generation. Contents of target/allure-results:"
+                    sh 'ls -l target/allure-results/ || echo "Directory is empty"'
                 }
 
                 echo "🧹 Cleaning up workspace..."
