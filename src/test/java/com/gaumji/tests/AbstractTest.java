@@ -6,7 +6,6 @@ import com.gaumji.util.Config;
 import com.gaumji.util.Constants;
 import com.google.common.util.concurrent.Uninterruptibles;
 import io.github.bonigarcia.wdm.WebDriverManager;
-import io.qameta.allure.Allure;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.WebDriver;
@@ -27,7 +26,6 @@ import java.time.Duration;
 @Listeners({TestListener.class})
 public abstract class AbstractTest {
     protected WebDriver driver;
-
     private static final Logger log = LoggerFactory.getLogger(AbstractTest.class);
 
     @BeforeSuite
@@ -38,7 +36,6 @@ public abstract class AbstractTest {
     @BeforeTest
     public void setDriver(ITestContext ctx) throws MalformedURLException {
         boolean isRemote = Boolean.parseBoolean(Config.get(Constants.GRID_ENABLED));
-        // ✅ Read the browser from the system property, which is passed by Jenkins.
         String browser = System.getProperty("browser");
         if (browser == null) {
             browser = Config.get(Constants.BROWSER);
@@ -49,24 +46,6 @@ public abstract class AbstractTest {
 
         this.driver = isRemote ? getRemoteDriver(browser) : getLocalDriver(browser);
         ctx.setAttribute(Constants.DRIVER, this.driver);
-
-        // ✅ Call writeEnvironmentInfo for both remote and local drivers to collect browser data
-        if (this.driver instanceof RemoteWebDriver remoteDriver) {
-            AllureEnvironmentWriter.writeEnvironmentInfo(remoteDriver);
-            AllureEnvironmentWriter.addBrowserLabel(remoteDriver);
-        } else {
-            // Handle local driver by extracting capabilities
-            Capabilities caps = null;
-            if (driver instanceof ChromeDriver) {
-                caps = ((ChromeDriver) driver).getCapabilities();
-            } else if (driver instanceof FirefoxDriver) {
-                caps = ((FirefoxDriver) driver).getCapabilities();
-            }
-            if (caps != null) {
-                AllureEnvironmentWriter.writeEnvironmentInfo(new RemoteWebDriver(caps));
-                AllureEnvironmentWriter.addBrowserLabel(new RemoteWebDriver(caps));
-            }
-        }
     }
 
     protected WebDriver getRemoteDriver(String browser) throws MalformedURLException {
@@ -98,25 +77,22 @@ public abstract class AbstractTest {
         return localDriver;
     }
 
-    public void setBrowserAsAllureParameter() {
-        String browser = System.getProperty("browser");
-        if (browser != null && !browser.isEmpty()) {
-            Allure.parameter("Browser", browser);
-        }
-    }
-
     @AfterTest
     public void tearDown() {
         if (this.driver != null) {
+            // Write environment info before quitting the driver
+            if (this.driver instanceof RemoteWebDriver) {
+                AllureEnvironmentWriter.writeEnvironmentInfo((RemoteWebDriver) this.driver);
+            }
             log.info("🧹 Quitting browser session.");
             this.driver.quit();
         }
     }
 
+    // This is no longer needed as the environment writer is called in @AfterTest
     @AfterSuite
     public void tearDownSuite() {
-        // ✅ Call writeEnvironmentInfo once after all tests to write the aggregated browser data
-        AllureEnvironmentWriter.writeEnvironmentInfo();
+        // This method is now empty but can be kept for future suite-level teardown logic.
     }
 
     @AfterMethod(enabled = false)

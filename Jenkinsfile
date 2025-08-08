@@ -16,17 +16,14 @@ pipeline {
     stages {
         stage('Prepare Workspace') {
             steps {
-                echo "🧹 Cleaning up old Allure report archives from previous builds..."
-                sh 'rm -rf allure-report || true'
+                echo "🧹 Cleaning up old artifacts..."
+                sh 'rm -rf target allure-report'
             }
         }
 
-        stage('Build & Push') {
+        stage('Build & Push Docker Image') {
             steps {
                 script {
-                    echo "🧹 Forcefully cleaning old build artifacts..."
-                    sh 'rm -rf target'
-
                     echo "📦 Building JAR and preparing resources..."
                     sh 'mvn clean package -DskipTests'
 
@@ -42,68 +39,44 @@ pipeline {
             }
         }
 
-        stage('Clean Results Directory') {
-            steps {
-                echo "🧹 Cleaning up old Allure results directory..."
-                sh 'rm -rf target/allure-results target/allure-results-* || true'
-                sh 'mkdir -p target/allure-results'
-            }
-        }
-
-        stage('Run Cross-Browser Suite') {
-            when {
-                expression { params.RUN_CROSS_BROWSER == true }
-            }
+        stage('Run Tests') {
             matrix {
                 axes {
                     axis {
-                        name 'BROWSER'
-                        values 'chrome', 'firefox'
+                        name 'BROWSER_AXIS'
+                        // If cross-browser is checked, run on both; otherwise, use the selected browser
+                        values { params.RUN_CROSS_BROWSER ? ['chrome', 'firefox'] : [params.BROWSER] }
                     }
                 }
                 stages {
-                    stage('Test on ${BROWSER}') {
+                    stage('Test on ${BROWSER_AXIS}') {
                         steps {
                             script {
-                                def projectName = "tests_${BROWSER}_${env.BUILD_NUMBER}"
+                                def projectName = "tests_${BROWSER_AXIS}_${env.BUILD_NUMBER}"
                                 try {
-                                    echo "🚀 Launching ${params.TEST_SUITE} on ${BROWSER}..."
-                                    sh "COMPOSE_PROJECT_NAME=${projectName} ENV=${params.ENV} TEST_SUITE=${params.TEST_SUITE} BROWSER=${BROWSER} THREAD_COUNT=${params.THREAD_COUNT} docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
+                                    echo "🚀 Launching ${params.TEST_SUITE} on ${BROWSER_AXIS}..."
+                                    // Using triple-double quotes for a cleaner multi-line shell command
+                                    sh """
+                                        COMPOSE_PROJECT_NAME=${projectName} \\
+                                        ENV=${params.ENV} \\
+                                        TEST_SUITE=${params.TEST_SUITE} \\
+                                        BROWSER=${BROWSER_AXIS} \\
+                                        THREAD_COUNT=${params.THREAD_COUNT} \\
+                                        docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
+                                    """
                                 } catch (any) {
-                                    error("Tests failed for suite ${params.TEST_SUITE} on ${BROWSER}.")
+                                    error("Tests failed for suite ${params.TEST_SUITE} on ${BROWSER_AXIS}.")
                                 } finally {
-                                    echo "📂 Copying Allure results from ${BROWSER} container..."
-                                    sh "mkdir -p ./target/allure-results-${BROWSER}/"
-                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${BROWSER}/ || true"
+                                    // CRITICAL: Each browser's results are copied to a UNIQUE directory. This prevents all race conditions.
+                                    echo "📂 Copying Allure results from ${BROWSER_AXIS} container..."
+                                    sh "mkdir -p ./target/allure-results-${BROWSER_AXIS}/"
+                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results-${BROWSER_AXIS}/ || true"
 
-                                    echo "🧹 Tearing down ${BROWSER} test environment..."
+                                    echo "🧹 Tearing down ${BROWSER_AXIS} test environment..."
                                     sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                                 }
                             }
                         }
-                    }
-                }
-            }
-        }
-
-        stage('Run Single-Browser Suite') {
-            when {
-                expression { params.RUN_CROSS_BROWSER == false }
-            }
-            steps {
-                script {
-                    def projectName = "tests_single_${env.BUILD_NUMBER}"
-                    try {
-                        echo "🚀 Launching ${params.TEST_SUITE} on ${params.BROWSER}..."
-                        sh "COMPOSE_PROJECT_NAME=${projectName} ENV=${params.ENV} TEST_SUITE=${params.TEST_SUITE} BROWSER=${params.BROWSER} THREAD_COUNT=${params.THREAD_COUNT} docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations"
-                    } catch (any) {
-                        error("Tests failed for suite ${params.TEST_SUITE} on ${params.BROWSER}.")
-                    } finally {
-                        echo "📂 Copying Allure results from container..."
-                        sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. ./target/allure-results/ || true"
-
-                        echo "🧹 Tearing down test environment..."
-                        sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                     }
                 }
             }
@@ -113,41 +86,17 @@ pipeline {
     post {
         always {
             script {
-                if (params.RUN_CROSS_BROWSER) {
-                    echo "🧹 Cleaning final Allure results directory for merge..."
-                    sh 'rm -rf target/allure-results || true'
-                    sh 'mkdir -p target/allure-results'
-
-                    echo "🤝 Merging Allure JSON results from both browsers..."
-                    sh 'cp -r target/allure-results-*/. ./target/allure-results/ 2>/dev/null || true'
-
-                    echo "📝 Building merged environment.properties..."
-                    sh '''
-                        echo "# Merged Allure Environment" > target/allure-results/environment.properties
-                        # Merge browser lines without filenames (-h), sort to ensure Chrome first, and ensure unique entries
-                        grep -h "^Browser" target/allure-results-*/environment.properties 2>/dev/null | sort -t'=' -k2 -u >> target/allure-results/environment.properties
-                        # Add the rest of the properties from the first env file found (excluding Browser lines)
-                        FIRST_ENV=$(ls target/allure-results-*/environment.properties 2>/dev/null | head -n 1 || true)
-                        if [ -n "$FIRST_ENV" ]; then
-                            grep -v "^Browser" "$FIRST_ENV" >> target/allure-results/environment.properties
-                        fi
-                        echo "Final merged environment.properties:"
-                        cat target/allure-results/environment.properties
-                    '''
-                }
-
-                echo "🔍 Contents of final Allure results directory:"
-                sh 'ls -l target/allure-results || echo "No results found."'
-
                 echo "🧪 Generating Allure Report..."
-                if (fileExists('target/allure-results') && sh(script: 'ls -A target/allure-results | wc -l', returnStdout: true).trim() != '0') {
-                    allure(results: [[path: 'target/allure-results']], report: false)
-                } else {
-                    echo "⚠️ No Allure results found — skipping report generation."
-                }
+                // The Allure plugin will automatically find all 'allure-results-*' directories within 'target' and aggregate them.
+                // This is the simplest, most robust way to generate the report.
+                allure(
+                        results: [[path: 'target']],
+                        reportBuildPolicy: 'ALWAYS'
+                )
 
-                echo "🧹 Cleaning up workspace..."
+                echo "🧹 Final workspace cleanup..."
                 cleanWs()
+
                 echo "✅ Pipeline completed successfully."
             }
         }
