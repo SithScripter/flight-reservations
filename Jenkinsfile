@@ -104,15 +104,22 @@ pipeline {
         }
     }
 
-    // ✅ FIX: Corrected the post block to work with archived artifacts.
     post {
         always {
             script {
-                echo "🧪 Generating Allure Report from archived artifacts..."
+                echo "🤝 Aggregating Allure results..."
+                // This merging logic is essential when using archiveArtifacts from different nodes.
+                // It ensures all results are in one place before the report is generated.
+                sh "mkdir -p target/allure-results"
+                sh "find . -path '*/allure-results-*' -type f -exec cp --parents -t target/allure-results/ {} +"
+
+                echo "🧪 Generating Allure Report..."
                 allure(
-                        // The plugin will find the archived results automatically.
+                        // ✅ FIX: Re-added the mandatory 'results' path.
+                        results: [[path: 'target/allure-results']],
                         reportBuildPolicy: 'ALWAYS'
                 )
+
                 echo "✅ Pipeline completed successfully."
             }
         }
