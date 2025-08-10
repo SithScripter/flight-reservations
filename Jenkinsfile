@@ -68,7 +68,8 @@ pipeline {
                             // Each parallel stage gets its own node, ensuring a clean slate.
                             node {
                                 // Keep the main workspace clean for the final report.
-                                sh 'rm -rf target allure-report'
+//                                sh 'rm -rf target allure-report'
+                                sh 'rm -rf *'
 
                                 // Checkout code into the executor's default workspace.
                                 checkout scm
@@ -86,13 +87,13 @@ pipeline {
                                         docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
                                     """
                                 } finally {
-                                    echo "📂 Copying Allure results from ${browser} container..."
-                                    // Use 'archiveArtifacts' to save results reliably.
+                                    echo "Stashing Allure results from ${browser} container..."
                                     sh "mkdir -p target/allure-results-${browser}/"
                                     sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
-                                    archiveArtifacts artifacts: "target/allure-results-${browser}/**", fingerprint: true
 
-                                    echo "🧹 Tearing down ${browser} test environment..."
+                                    // ✅ FIX: Stash the results with a unique name for each browser.
+                                    stash name: "allure-results-${browser}", includes: "target/allure-results-${browser}/**"
+
                                     sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                                 }
                             }
@@ -107,15 +108,22 @@ pipeline {
     post {
         always {
             script {
-                echo "🤝 Aggregating Allure results..."
-                // This merging logic is essential when using archiveArtifacts from different nodes.
-                // It ensures all results are in one place before the report is generated.
+                // ✅ FIX: Unstash all results into the current workspace.
+                echo "🤝 Aggregating Allure results from all parallel runs..."
+                sh "rm -rf target"
+                sh "mkdir -p target"
+
+                // Unstash results from every browser that ran.
+                for (String browser : browsersToTest) {
+                    unstash name: "allure-results-${browser}"
+                }
+
+                // Now merge the unstashed results into a single directory.
                 sh "mkdir -p target/allure-results"
-                sh "find . -path '*/allure-results-*' -type f -exec cp --parents -t target/allure-results/ {} +"
+                sh "find target/allure-results-* -type f -exec cp {} target/allure-results/ \\; || true"
 
                 echo "🧪 Generating Allure Report..."
                 allure(
-                        // ✅ FIX: Re-added the mandatory 'results' path.
                         results: [[path: 'target/allure-results']],
                         reportBuildPolicy: 'ALWAYS'
                 )
