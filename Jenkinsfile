@@ -1,4 +1,4 @@
-// Jenkinsfile - Simplified, Plugin-Only Approach
+// Jenkinsfile - Final Corrected Version
 
 def browsersToTest = []
 
@@ -72,7 +72,6 @@ pipeline {
                                     sh "mkdir -p target/allure-results-${browser}/"
                                     sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
 
-                                    // ✅ Stash only if results exist
                                     def resultCount = sh(script: "ls target/allure-results-${browser}/ 2>/dev/null | wc -l", returnStdout: true).trim()
                                     if (resultCount != "0") {
                                         stash name: "allure-results-${browser}", includes: "target/allure-results-${browser}/**"
@@ -99,7 +98,6 @@ pipeline {
                 def finalReportDir = 'allure-final-results'
                 sh "rm -rf ${finalReportDir} && mkdir -p ${finalReportDir}"
 
-                // Unstash + copy results
                 for (String browser : browsersToTest) {
                     try {
                         unstash name: "allure-results-${browser}"
@@ -109,17 +107,33 @@ pipeline {
                     }
                 }
 
-                // --- Merge environment.properties content from each browser ---
+                // --- Merge environment.properties content cleanly ---
+                // ✅ FIX: Pass the groovy variable 'browsersToTest.size()' into the shell script correctly
                 sh """
                 echo "Merging environment.properties from each browser..."
                 TMP_ENV=\$(mktemp)
                 > "\$TMP_ENV"
+
                 for dir in target/allure-results-*; do
                     if [ -f "\$dir/environment.properties" ]; then
-                        browserName=\$(basename "\$dir" | sed 's/^allure-results-//')
-                        sed "s/^/[\\\${browserName}] /" "\$dir/environment.properties" >> "\$TMP_ENV"
+                        browserName=\$(basename "\$dir" | awk -F'-' '{print \$NF}')
+
+                        # If multiple browsers, prefix browser-specific keys so they don't overwrite each other
+                        if [ ${browsersToTest.size()} -gt 1 ]; then
+                            awk -v prefix="\$browserName" '{
+                                split(\$0,a,"=");
+                                if (a[1] ~ /^Browser/ || a[1] ~ /^Browser.Version/) {
+                                    print a[1] "." prefix "=" a[2];
+                                } else {
+                                    print \$0;
+                                }
+                            }' "\$dir/environment.properties" >> "\$TMP_ENV"
+                        else
+                            cat "\$dir/environment.properties" >> "\$TMP_ENV"
+                        fi
                     fi
                 done
+
                 mv "\$TMP_ENV" "${finalReportDir}/environment.properties"
                 echo "Merged environment.properties:"
                 cat "${finalReportDir}/environment.properties"
