@@ -1,4 +1,5 @@
-// Define a safe-scoped variable to hold the list of browsers we will test against.
+// Jenkinsfile - Simplified, Plugin-Only Approach
+
 def browsersToTest = []
 
 pipeline {
@@ -20,24 +21,26 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    // Priority: if cross-browser is true, always run on both browsers
-                    if (params.RUN_CROSS_BROWSER.toString() == 'true') {
+                    // Always set browsersToTest fresh from params — never reuse leftovers
+                    browsersToTest = []
+
+                    if (params.RUN_CROSS_BROWSER) {
+                        // Explicit override: always Chrome + Firefox
                         browsersToTest = ['chrome', 'firefox']
                     } else {
+                        // Take user-selected browser, fallback to Chrome if invalid
                         def selectedBrowser = params.BROWSER?.toLowerCase()
-                        if (selectedBrowser == 'chrome' || selectedBrowser == 'firefox') {
-                            browsersToTest = [selectedBrowser]
-                        } else {
-                            // Default fallback
-                            browsersToTest = ['chrome']
-                        }
+                        browsersToTest = (selectedBrowser in ['chrome', 'firefox']) ? [selectedBrowser] : ['chrome']
                     }
-                    // Ensure unique entries
+
+                    // Safety: remove any accidental duplicates
                     browsersToTest = browsersToTest.unique()
-                    echo "Tests will run on the following browsers: ${browsersToTest.join(', ')}"
+
+                    echo "✅ Browsers to test: ${browsersToTest.join(', ')}"
                 }
             }
         }
+
 
         stage('Build & Push Docker Image') {
             steps {
@@ -60,7 +63,6 @@ pipeline {
                     for (String browser : browsersToTest) {
                         parallelStages["Test on ${browser}"] = {
                             node {
-                                // Start fresh workspace for this parallel stage
                                 deleteDir()
                                 checkout scm
 
@@ -75,17 +77,12 @@ pipeline {
                                         docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
                                     """
                                 } finally {
-                                    echo "Stashing Allure results from ${browser} container..."
+                                    // Store results per browser
                                     sh "mkdir -p target/allure-results-${browser}/"
                                     sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
 
-                                    // Only stash if results exist
-                                    def resultCount = sh(script: "ls target/allure-results-${browser}/ 2>/dev/null | wc -l", returnStdout: true).trim()
-                                    if (resultCount != "0") {
-                                        stash name: "allure-results-${browser}", includes: "target/allure-results-${browser}/**"
-                                    } else {
-                                        echo "No Allure results found for ${browser}, skipping stash."
-                                    }
+                                    // Stash for aggregation
+                                    stash name: "allure-results-${browser}", includes: "target/allure-results-${browser}/**"
 
                                     sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                                 }
@@ -101,35 +98,24 @@ pipeline {
     post {
         always {
             script {
-                echo "🤝 Aggregating Allure results from all parallel runs..."
+                // Prepare one target dir where plugin will pick up results
+                sh "rm -rf target/allure-results && mkdir -p target/allure-results"
 
-                // Clean/prepare final directory for Allure results
-                sh "rm -rf target && mkdir -p target"
-
-                // Unstash results from each browser safely
+                // Unstash all browser results
                 for (String browser : browsersToTest) {
                     try {
                         unstash name: "allure-results-${browser}"
+                        sh "cp -r target/allure-results-${browser}/* target/allure-results/ || true"
                     } catch (Exception e) {
-                        echo "Could not find stash for browser ${browser}: ${e}"
+                        echo "⚠️ No results for ${browser}: ${e}"
                     }
                 }
 
-                // Merge all results into single folder for Allure report generation
-                sh "mkdir -p target/allure-results"
-                sh "find target/allure-results-* -type f -exec cp -t target/allure-results {} + || true"
-
-                // Debug: list merged results
-                echo "🧪 Final Allure results directory contents:"
-                sh "ls -l target/allure-results || true"
-
-                // Generate Allure report with correct path
+                // Let the Allure Jenkins plugin handle the aggregation
                 allure(
                         results: [[path: 'target/allure-results']],
                         reportBuildPolicy: 'ALWAYS'
                 )
-
-                echo "✅ Pipeline completed successfully."
             }
         }
     }
