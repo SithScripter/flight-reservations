@@ -102,7 +102,7 @@ pipeline {
                         echo "Could not find stash for ${browser}. It may have failed or produced no results."
                     }
                 }
-
+                //delete this comment
                 sh "mkdir -p target/allure-results"
                 sh "find target/allure-results-* -type f -exec cp {} target/allure-results/ \\; || true"
 
