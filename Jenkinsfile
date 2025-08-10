@@ -98,25 +98,29 @@ pipeline {
     post {
         always {
             script {
-                // Prepare one target dir where plugin will pick up results
-                sh "rm -rf target/allure-results && mkdir -p target/allure-results"
+                echo "🤝 Aggregating Allure results..."
 
-                // Unstash all browser results
+                // Always unique final dir
+                def finalReportDir = 'allure-final-results'
+                sh "rm -rf ${finalReportDir} && mkdir -p ${finalReportDir}"
+
+                // Unstash + copy
                 for (String browser : browsersToTest) {
                     try {
                         unstash name: "allure-results-${browser}"
-                        sh "cp -r target/allure-results-${browser}/* target/allure-results/ || true"
+                        sh "cp -r target/allure-results-${browser}/* ${finalReportDir}/ || true"
                     } catch (Exception e) {
                         echo "⚠️ No results for ${browser}: ${e}"
                     }
                 }
 
-                // Let the Allure Jenkins plugin handle the aggregation
+                echo "🧪 Generating Allure Report..."
                 allure(
-                        results: [[path: 'target/allure-results']],
+                        results: [[path: finalReportDir]],
                         reportBuildPolicy: 'ALWAYS'
                 )
             }
         }
     }
+
 }
