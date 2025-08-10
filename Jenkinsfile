@@ -1,14 +1,15 @@
+// Define a safe-scoped variable to hold the list of browsers we will test against.
 def browsersToTest = []
 
 pipeline {
     agent any
 
     parameters {
-        choice(name: 'ENV', choices: ['qa', 'staging', 'production'], description: 'Choose the environment to run tests against')
-        choice(name: 'TEST_SUITE', choices: ['regression.xml', 'flight-reservation.xml', 'vendor-portal.xml'], description: 'Choose the suite to run')
-        choice(name: 'BROWSER', choices: ['chrome', 'firefox'], description: 'Browser for single-browser runs')
-        string(name: 'THREAD_COUNT', defaultValue: '2', description: 'Number of parallel threads')
-        booleanParam(name: 'RUN_CROSS_BROWSER', defaultValue: false, description: 'Check this box to run on both Chrome and Firefox')
+        choice(name: 'ENV', choices: ['qa', 'staging', 'production'], description: 'Choose the environment')
+        choice(name: 'TEST_SUITE', choices: ['regression.xml', 'flight-reservation.xml', 'vendor-portal.xml'], description: 'Suite to run')
+        choice(name: 'BROWSER', choices: ['chrome', 'firefox'], description: 'Single browser selection')
+        string(name: 'THREAD_COUNT', defaultValue: '2', description: 'Parallel threads')
+        booleanParam(name: 'RUN_CROSS_BROWSER', defaultValue: false, description: 'Run on both Chrome and Firefox')
     }
 
     environment {
@@ -19,6 +20,7 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
+                    // Set browsersToTest based on cross-browser flag and selection
                     if (params.RUN_CROSS_BROWSER) {
                         browsersToTest = ['chrome', 'firefox']
                     } else {
@@ -50,10 +52,9 @@ pipeline {
                     for (String browser : browsersToTest) {
                         parallelStages["Test on ${browser}"] = {
                             node {
-                                // Clean the workspace for this parallel stage
+                                // Clean the workspace completely for isolation
                                 deleteDir()
                                 checkout scm
-
                                 def projectName = "tests_${browser}_${env.BUILD_NUMBER}"
                                 try {
                                     sh """
@@ -69,7 +70,7 @@ pipeline {
                                     sh "mkdir -p target/allure-results-${browser}/"
                                     sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
 
-                                    // Safety check: Only stash if results files actually exist
+                                    // Only stash if results files actually exist
                                     def resultCount = sh(script: "ls target/allure-results-${browser}/ 2>/dev/null | wc -l", returnStdout: true).trim()
                                     if (resultCount != "0") {
                                         stash name: "allure-results-${browser}", includes: "target/allure-results-${browser}/**"
@@ -92,21 +93,28 @@ pipeline {
         always {
             script {
                 echo "🤝 Aggregating Allure results from all parallel runs..."
+
+                // Clean and prepare final target directory for Allure
                 sh "rm -rf target && mkdir -p target"
 
-                // Safely unstash results for each browser
+                // Unstash the results for browsers that successfully stashed
                 for (String browser : browsersToTest) {
                     try {
                         unstash name: "allure-results-${browser}"
-                    } catch (e) {
+                    } catch (Exception e) {
                         echo "Could not find stash for ${browser}. It may have failed or produced no results."
                     }
                 }
-                //delete this comment
+
+                // Merge all results into one folder for Allure processing
                 sh "mkdir -p target/allure-results"
                 sh "find target/allure-results-* -type f -exec cp {} target/allure-results/ \\; || true"
 
-                echo "🧪 Generating Allure Report..."
+                // Debug output for troubleshooting
+                echo "🧪 Debug: Listing final Allure results directory contents:"
+                sh "ls -l target/allure-results || true"
+
+                // Generate the Allure report
                 allure(
                         results: [[path: 'target/allure-results']],
                         reportBuildPolicy: 'ALWAYS'
