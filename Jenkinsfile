@@ -88,8 +88,13 @@ pipeline {
                 sh "rm -rf target"
                 sh "mkdir -p target"
 
+                // ✅ FIX: Wrap unstash in a try-catch block to prevent build failure if a stash is missing.
                 for (String browser : browsersToTest) {
-                    unstash name: "allure-results-${browser}"
+                    try {
+                        unstash name: "allure-results-${browser}"
+                    } catch (e) {
+                        echo "Could not find stash for ${browser}. It may have failed."
+                    }
                 }
 
                 sh "mkdir -p target/allure-results"
