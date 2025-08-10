@@ -21,26 +21,18 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    // Always set browsersToTest fresh from params — never reuse leftovers
                     browsersToTest = []
-
                     if (params.RUN_CROSS_BROWSER) {
-                        // Explicit override: always Chrome + Firefox
                         browsersToTest = ['chrome', 'firefox']
                     } else {
-                        // Take user-selected browser, fallback to Chrome if invalid
                         def selectedBrowser = params.BROWSER?.toLowerCase()
                         browsersToTest = (selectedBrowser in ['chrome', 'firefox']) ? [selectedBrowser] : ['chrome']
                     }
-
-                    // Safety: remove any accidental duplicates
                     browsersToTest = browsersToTest.unique()
-
                     echo "✅ Browsers to test: ${browsersToTest.join(', ')}"
                 }
             }
         }
-
 
         stage('Build & Push Docker Image') {
             steps {
@@ -77,12 +69,16 @@ pipeline {
                                         docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
                                     """
                                 } finally {
-                                    // Store results per browser
                                     sh "mkdir -p target/allure-results-${browser}/"
                                     sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
 
-                                    // Stash for aggregation
-                                    stash name: "allure-results-${browser}", includes: "target/allure-results-${browser}/**"
+                                    // ✅ Stash only if results exist
+                                    def resultCount = sh(script: "ls target/allure-results-${browser}/ 2>/dev/null | wc -l", returnStdout: true).trim()
+                                    if (resultCount != "0") {
+                                        stash name: "allure-results-${browser}", includes: "target/allure-results-${browser}/**"
+                                    } else {
+                                        echo "⚠️ No Allure results found for ${browser}, skipping stash."
+                                    }
 
                                     sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                                 }
@@ -100,11 +96,10 @@ pipeline {
             script {
                 echo "🤝 Aggregating Allure results..."
 
-                // Always unique final dir
                 def finalReportDir = 'allure-final-results'
                 sh "rm -rf ${finalReportDir} && mkdir -p ${finalReportDir}"
 
-                // Unstash + copy
+                // Unstash + copy results
                 for (String browser : browsersToTest) {
                     try {
                         unstash name: "allure-results-${browser}"
@@ -114,7 +109,24 @@ pipeline {
                     }
                 }
 
+                // --- Merge environment.properties content from each browser ---
+                sh """
+                echo "Merging environment.properties from each browser..."
+                TMP_ENV=\$(mktemp)
+                > "\$TMP_ENV"
+                for dir in target/allure-results-*; do
+                    if [ -f "\$dir/environment.properties" ]; then
+                        browserName=\$(basename "\$dir" | sed 's/^allure-results-//')
+                        sed "s/^/[\\\${browserName}] /" "\$dir/environment.properties" >> "\$TMP_ENV"
+                    fi
+                done
+                mv "\$TMP_ENV" "${finalReportDir}/environment.properties"
+                echo "Merged environment.properties:"
+                cat "${finalReportDir}/environment.properties"
+                """
+
                 echo "🧪 Generating Allure Report..."
+                sh "ls -l ${finalReportDir} || true"
                 allure(
                         results: [[path: finalReportDir]],
                         reportBuildPolicy: 'ALWAYS'
@@ -122,5 +134,4 @@ pipeline {
             }
         }
     }
-
 }
