@@ -1,15 +1,14 @@
-// Define a safe-scoped variable to hold the list of browsers we will test against.
 def browsersToTest = []
 
 pipeline {
     agent any
 
     parameters {
-        choice(name: 'ENV', choices: ['qa', 'staging', 'production'], description: 'Choose the environment')
-        choice(name: 'TEST_SUITE', choices: ['regression.xml', 'flight-reservation.xml', 'vendor-portal.xml'], description: 'Suite to run')
-        choice(name: 'BROWSER', choices: ['chrome', 'firefox'], description: 'Single browser selection')
-        string(name: 'THREAD_COUNT', defaultValue: '2', description: 'Parallel threads')
-        booleanParam(name: 'RUN_CROSS_BROWSER', defaultValue: false, description: 'Run on both Chrome and Firefox')
+        choice(name: 'ENV', choices: ['qa', 'staging', 'production'], description: 'Choose the environment to run tests against')
+        choice(name: 'TEST_SUITE', choices: ['regression.xml', 'flight-reservation.xml', 'vendor-portal.xml'], description: 'Choose the suite to run')
+        choice(name: 'BROWSER', choices: ['chrome', 'firefox'], description: 'Browser for single-browser runs')
+        string(name: 'THREAD_COUNT', defaultValue: '2', description: 'Number of parallel threads')
+        booleanParam(name: 'RUN_CROSS_BROWSER', defaultValue: false, description: 'Check this box to run on both Chrome and Firefox')
     }
 
     environment {
@@ -20,7 +19,6 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    // Always set browsersToTest to guarantee what is used in post block.
                     if (params.RUN_CROSS_BROWSER) {
                         browsersToTest = ['chrome', 'firefox']
                     } else {
@@ -52,9 +50,10 @@ pipeline {
                     for (String browser : browsersToTest) {
                         parallelStages["Test on ${browser}"] = {
                             node {
-                                // Always clean only own target folder, not entire workspace.
+                                // Clean the workspace for this parallel stage
                                 deleteDir()
                                 checkout scm
+
                                 def projectName = "tests_${browser}_${env.BUILD_NUMBER}"
                                 try {
                                     sh """
@@ -69,13 +68,15 @@ pipeline {
                                     echo "Stashing Allure results from ${browser} container..."
                                     sh "mkdir -p target/allure-results-${browser}/"
                                     sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
-                                    // Only stash if results exist
-                                    def filesInResult = sh(script: "ls target/allure-results-${browser} 2>/dev/null | wc -l", returnStdout: true).trim()
-                                    if (filesInResult != "0") {
+
+                                    // Safety check: Only stash if results files actually exist
+                                    def resultCount = sh(script: "ls target/allure-results-${browser}/ 2>/dev/null | wc -l", returnStdout: true).trim()
+                                    if (resultCount != "0") {
                                         stash name: "allure-results-${browser}", includes: "target/allure-results-${browser}/**"
                                     } else {
-                                        echo "No Allure results found for ${browser}, skipping stash."
+                                        echo "No Allure results were found for ${browser} to stash."
                                     }
+
                                     sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                                 }
                             }
@@ -91,25 +92,26 @@ pipeline {
         always {
             script {
                 echo "🤝 Aggregating Allure results from all parallel runs..."
-                sh "rm -rf target"
-                sh "mkdir -p target"
-                // Safely unstash only if the stash was created
+                sh "rm -rf target && mkdir -p target"
+
+                // Safely unstash results for each browser
                 for (String browser : browsersToTest) {
                     try {
-                        unstash(name: "allure-results-${browser}")
-                    } catch (Exception e) {
-                        echo "No Allure results stash for ${browser}: " + e.toString()
+                        unstash name: "allure-results-${browser}"
+                    } catch (e) {
+                        echo "Could not find stash for ${browser}. It may have failed or produced no results."
                     }
                 }
+
                 sh "mkdir -p target/allure-results"
                 sh "find target/allure-results-* -type f -exec cp {} target/allure-results/ \\; || true"
-                echo "🧪 DEBUG: Listing merged Allure results"
-                sh "ls -l target/allure-results || true"
+
                 echo "🧪 Generating Allure Report..."
                 allure(
                         results: [[path: 'target/allure-results']],
                         reportBuildPolicy: 'ALWAYS'
                 )
+
                 echo "✅ Pipeline completed successfully."
             }
         }
