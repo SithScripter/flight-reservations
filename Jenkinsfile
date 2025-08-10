@@ -20,12 +20,20 @@ pipeline {
         stage('Initialize') {
             steps {
                 script {
-                    // Set browsersToTest based on cross-browser flag and selection
                     if (params.RUN_CROSS_BROWSER) {
                         browsersToTest = ['chrome', 'firefox']
                     } else {
-                        browsersToTest = [params.BROWSER]
+                        // Defensive check to handle any wrong or unexpected param values
+                        def selectedBrowser = params.BROWSER?.toLowerCase()
+                        if (selectedBrowser == 'chrome' || selectedBrowser == 'firefox') {
+                            browsersToTest = [selectedBrowser]
+                        } else {
+                            // default fallback (optional)
+                            browsersToTest = ['chrome']
+                        }
                     }
+                    // Remove duplicates just in case
+                    browsersToTest = browsersToTest.unique()
                     echo "Tests will run on the following browsers: ${browsersToTest}"
                 }
             }
