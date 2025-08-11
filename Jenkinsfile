@@ -1,6 +1,5 @@
-// Jenkinsfile - Final Version with Auto Environment Details & Allure CLI
-
 def browsersToTest = []
+def browserCount = 0
 
 pipeline {
     agent any
@@ -15,7 +14,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = "gaumji19/flight-reservations"
-        ALLURE_CMD = tool 'Allure'  // Jenkins tool name for Allure CLI
+        ALLURE_CMD = tool 'Allure'
     }
 
     stages {
@@ -29,6 +28,7 @@ pipeline {
                         browsersToTest = (selectedBrowser in ['chrome', 'firefox']) ? [selectedBrowser] : ['chrome']
                     }
                     browsersToTest = browsersToTest.unique()
+                    browserCount = browsersToTest.size()
                     echo "✅ Browsers to test: ${browsersToTest.join(', ')}"
                 }
             }
@@ -98,67 +98,55 @@ pipeline {
                 def finalResultsDir = 'allure-final-results'
                 sh "rm -rf ${finalResultsDir} && mkdir -p ${finalResultsDir}"
 
-                // Unstash all results
                 for (String browser : browsersToTest) {
                     try {
                         unstash name: "allure-results-${browser}"
+                        sh "cp -r target/allure-results-${browser}/* ${finalResultsDir}/ || true"
                     } catch (Exception e) {
                         echo "⚠️ No results for ${browser}: ${e}"
                     }
                 }
 
-                // Merge all into final directory
-                sh "find . -path '*/allure-results-*' -exec cp -r {}/. ${finalResultsDir}/ \\; || true"
+                // ✅ FIX: Escape all shell variables ($) inside the Groovy string
+                sh """
+                echo "Merging environment.properties from each browser..."
+                TMP_ENV=\\$(mktemp)
+                > "\\\$TMP_ENV"
 
-                // Build merge script with extra environment fields
-                writeFile file: 'merge-env.sh', text: '''
-#!/bin/bash
-TMP_ENV=$(mktemp)
-> "$TMP_ENV"
+                for dir in target/allure-results-*; do
+                    if [ -f "\\\$dir/environment.properties" ]; then
+                        browserName=\\$(basename "\\\$dir" | sed 's/^allure-results-//')
 
-for dir in target/allure-results-*; do
-    if [ -f "$dir/environment.properties" ]; then
-        browserName=$(basename "$dir" | sed 's/^allure-results-//')
+                        if [ ${browserCount} -gt 1 ]; then
+                            awk -v prefix="\\\$browserName" '{
+                                split(\\\$0,a,"=");
+                                if (a[1] ~ /^Browser/ || a[1] ~ /^Browser.Version/) {
+                                    print a[1] "." prefix "=" a[2];
+                                } else {
+                                    print \\\$0;
+                                }
+                            }' "\\\$dir/environment.properties" >> "\\\$TMP_ENV"
+                        else
+                            cat "\\\$dir/environment.properties" >> "\\\$TMP_ENV"
+                        fi
+                    fi
+                done
 
-        if [ ${browserCount} -gt 1 ]; then
-            awk -v prefix="$browserName" '{
-                split($0,a,"=");
-                if (a[1] ~ /^Browser/ || a[1] ~ /^Browser.Version/) {
-                    print a[1] "." prefix "=" a[2];
-                } else {
-                    print $0;
-                }
-            }' "$dir/environment.properties" >> "$TMP_ENV"
-        else
-            cat "$dir/environment.properties" >> "$TMP_ENV"
-        fi
-    fi
-done
+                echo "Thread.Count=${params.THREAD_COUNT}" >> "\\\$TMP_ENV"
+                echo "Test.Suite=${params.TEST_SUITE}" >> "\\\$TMP_ENV"
 
-# Append standard metadata
-echo "Thread.Count=''' + params.THREAD_COUNT + '''" >> "$TMP_ENV"
-echo "Test.Suite=''' + params.TEST_SUITE + '''" >> "$TMP_ENV"
-
-# Auto-detected values
-JAVA_VERSION=$(java -version 2>&1 | awk -F '"' '/version/ {print $2}')
-OS_INFO=$(uname -s)$(uname -r | sed "s/^/-/")
-echo "Java.Version=$JAVA_VERSION" >> "$TMP_ENV"
-echo "OS=$OS_INFO" >> "$TMP_ENV"
-echo "Selenium.Grid=true" >> "$TMP_ENV"
-
-mv "$TMP_ENV" allure-final-results/environment.properties
-echo "Merged environment.properties:"
-cat allure-final-results/environment.properties
-'''
-
-                // Run merge script
-                sh "chmod +x merge-env.sh && browserCount=${browsersToTest.size()} ./merge-env.sh"
+                mv "\\\$TMP_ENV" "${finalResultsDir}/environment.properties"
+                echo "Merged environment.properties:"
+                cat "${finalResultsDir}/environment.properties"
+                """
 
                 echo "🧪 Generating Allure Report via CLI..."
-                sh "${ALLURE_CMD}/bin/allure generate ${finalResultsDir} -o allure-report --clean"
+                sh """
+                    rm -rf allure-report
+                    ${ALLURE_CMD}/bin/allure generate ${finalResultsDir} -o allure-report --clean
+                """
 
-                // Publish HTML report
-                allure includeProperties: false, report: 'allure-report'
+                allure includeProperties: false, jdk: '', report: 'allure-report'
             }
         }
     }
