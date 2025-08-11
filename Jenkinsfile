@@ -13,6 +13,7 @@ pipeline {
         IMAGE_NAME = "gaumji19/flight-reservations"
     }
 
+    //force multibranch to run this pipeline
     stages {
         stage('Build & Push Docker Image') {
             steps {
