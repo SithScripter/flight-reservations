@@ -1,6 +1,3 @@
-// Jenkinsfile - Simple QA Version without Allure CLI
-def browsersToTest = []
-
 pipeline {
     agent any
 
@@ -17,67 +14,53 @@ pipeline {
     }
 
     stages {
-
-        stage('Initialize') {
-            steps {
-                script {
-                    if (params.RUN_CROSS_BROWSER) {
-                        browsersToTest = ['chrome', 'firefox']
-                    } else {
-                        def sel = params.BROWSER?.toLowerCase()
-                        browsersToTest = (sel in ['chrome', 'firefox']) ? [sel] : ['chrome']
-                    }
-                    echo "✅ Browsers to test: ${browsersToTest.join(', ')}"
-                }
-            }
-        }
-
         stage('Build & Push Docker Image') {
             steps {
                 script {
                     sh 'mvn clean package -DskipTests'
-                    def app = docker.build("${IMAGE_NAME}:${BUILD_NUMBER}", "--no-cache .")
+                    def app = docker.build("${env.IMAGE_NAME}:${env.BUILD_NUMBER}", "--no-cache .")
                     docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-creds') {
                         app.push("latest")
-                        app.push("${BUILD_NUMBER}")
+                        app.push("${env.BUILD_NUMBER}")
                     }
                 }
             }
         }
 
-        stage('Run Tests in Parallel') {
-            agent none
+        stage('Run Tests') {
             steps {
                 script {
-                    def runs = [:]
-                    for (String browser : browsersToTest) {
-                        runs["${browser}"] = {
-                            node {
-                                deleteDir()
-                                checkout scm
-                                def projectName = "tests_${browser}_${BUILD_NUMBER}"
-                                try {
-                                    sh """
-                                        COMPOSE_PROJECT_NAME=${projectName} \\
-                                        ENV=${params.ENV} \\
-                                        TEST_SUITE=${params.TEST_SUITE} \\
-                                        BROWSER=${browser} \\
-                                        THREAD_COUNT=${params.THREAD_COUNT} \\
-                                        docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
-                                    """
-                                } finally {
-                                    sh "mkdir -p target/allure-results-${browser}"
-                                    sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
+                    def browsersToTest = []
+                    if (params.RUN_CROSS_BROWSER) {
+                        browsersToTest = ['chrome', 'firefox']
+                    } else {
+                        browsersToTest = [params.BROWSER]
+                    }
+                    echo "✅ Tests will run on: ${browsersToTest.join(', ')}"
 
-                                    if (sh(script: "ls target/allure-results-${browser} | wc -l", returnStdout: true).trim() != "0") {
-                                        stash name: "results-${browser}", includes: "target/allure-results-${browser}/**"
-                                    }
-                                    sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
-                                }
+                    sh 'rm -rf target'
+
+                    def parallelStages = [:]
+                    for (String browser : browsersToTest) {
+                        parallelStages["Test on ${browser}"] = {
+                            def projectName = "tests_${browser}_${env.BUILD_NUMBER}"
+                            try {
+                                sh """
+                                    COMPOSE_PROJECT_NAME=${projectName} \\
+                                    ENV=${params.ENV} \\
+                                    TEST_SUITE=${params.TEST_SUITE} \\
+                                    BROWSER=${browser} \\
+                                    THREAD_COUNT=${params.THREAD_COUNT} \\
+                                    docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
+                                """
+                            } finally {
+                                sh "mkdir -p target/allure-results-${browser}/"
+                                sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
+                                sh "COMPOSE_PROJECT_NAME=${projectName} docker-compose -f docker-compose.test.yml down -v || true"
                             }
                         }
                     }
-                    parallel runs
+                    parallel parallelStages
                 }
             }
         }
@@ -85,53 +68,21 @@ pipeline {
 
     post {
         always {
-            node {
-                def finalDir = 'allure-final-results'
-                sh "rm -rf ${finalDir} && mkdir -p ${finalDir}"
+            script {
+                echo "🤝 Aggregating Allure results..."
 
-                // Unstash and copy all browser results
-                for (String browser : browsersToTest) {
-                    try {
-                        unstash "results-${browser}"
-                        sh "cp -r target/allure-results-${browser}/* ${finalDir}/ || true"
-                    } catch (e) {
-                        echo "⚠️ No results for ${browser}"
-                    }
-                }
+                def finalReportDir = 'allure-final-results'
+                sh "rm -rf ${finalReportDir} && mkdir -p ${finalReportDir}"
 
-                // Write environment.properties
-                writeFile file: "${finalDir}/environment.properties", text: mergeEnvProps(browsersToTest)
+                // Simple and direct copy. The environment files are already perfect.
+                sh "find target/allure-results-* -type f -exec cp {} ${finalReportDir}/ \\; || true"
 
-                // Let Jenkins Allure plugin publish directly (no CLI)
-                allure includeProperties: false, results: [[path: finalDir]], reportBuildPolicy: 'ALWAYS'
+                echo "🧪 Generating Allure Report..."
+                allure(
+                        results: [[path: finalReportDir]],
+                        reportBuildPolicy: 'ALWAYS'
+                )
             }
         }
     }
-}
-
-// ---------- Helper to merge environment.properties ----------
-@NonCPS
-String mergeEnvProps(List<String> browsers) {
-    def lines = []
-    def common = [
-            "Test.Suite=${params.TEST_SUITE}",
-            "Thread.Count=${params.THREAD_COUNT}",
-            "ENV=${params.ENV}",
-            "Java.Version=${System.getProperty('java.version')}",
-            "OS=${System.getProperty('os.name')}",
-            "Selenium.Grid=true"
-    ]
-    if (browsers.size() > 1) {
-        browsers.each { b ->
-            lines << "Browser.${b}=${b.capitalize()}"
-            lines << "Browser.Version.${b}=unknown"
-        }
-        lines.addAll(common)
-    } else {
-        def b = browsers[0]
-        lines << "Browser=${b.capitalize()}"
-        lines << "Browser.Version=unknown"
-        lines.addAll(common)
-    }
-    return lines.join("\n") + "\n"
 }
