@@ -1,6 +1,7 @@
-// Jenkinsfile - Final Corrected Version
+// Jenkinsfile - Final Version with Thread.Count & Test.Suite in Allure Environment
 
 def browsersToTest = []
+def browserCount = 0
 
 pipeline {
     agent any
@@ -15,13 +16,13 @@ pipeline {
 
     environment {
         IMAGE_NAME = "gaumji19/flight-reservations"
+        ALLURE_CMD = tool 'Allure'   // Path to Allure CLI from Jenkins Global Tool Config
     }
 
     stages {
         stage('Initialize') {
             steps {
                 script {
-                    browsersToTest = []
                     if (params.RUN_CROSS_BROWSER) {
                         browsersToTest = ['chrome', 'firefox']
                     } else {
@@ -29,6 +30,7 @@ pipeline {
                         browsersToTest = (selectedBrowser in ['chrome', 'firefox']) ? [selectedBrowser] : ['chrome']
                     }
                     browsersToTest = browsersToTest.unique()
+                    browserCount = browsersToTest.size()
                     echo "✅ Browsers to test: ${browsersToTest.join(', ')}"
                 }
             }
@@ -95,56 +97,62 @@ pipeline {
             script {
                 echo "🤝 Aggregating Allure results..."
 
-                def finalReportDir = 'allure-final-results'
-                sh "rm -rf ${finalReportDir} && mkdir -p ${finalReportDir}"
+                def finalResultsDir = 'allure-final-results'
+                sh "rm -rf ${finalResultsDir} && mkdir -p ${finalResultsDir}"
 
                 for (String browser : browsersToTest) {
                     try {
                         unstash name: "allure-results-${browser}"
-                        sh "cp -r target/allure-results-${browser}/* ${finalReportDir}/ || true"
-                    } catch (Exception e) {
+                        sh "cp -r target/allure-results-${browser}/* ${finalResultsDir}/ || true"
+                    } catch (e) {
                         echo "⚠️ No results for ${browser}: ${e}"
                     }
                 }
 
-                // --- Merge environment.properties content cleanly ---
-                // ✅ FIX: Pass the groovy variable 'browsersToTest.size()' into the shell script correctly
-                sh """
-                echo "Merging environment.properties from each browser..."
-                TMP_ENV=\$(mktemp)
-                > "\$TMP_ENV"
+                // --- Merge environment.properties cleanly ---
+                writeFile file: 'merge-env.sh', text: """
+                #!/bin/bash
+                TMP_ENV=$(mktemp)
+                > "$TMP_ENV"
 
                 for dir in target/allure-results-*; do
-                    if [ -f "\$dir/environment.properties" ]; then
-                        browserName=\$(basename "\$dir" | awk -F'-' '{print \$NF}')
+                    if [ -f "$dir/environment.properties" ]; then
+                        browserName=$(basename "$dir" | sed 's/^allure-results-//')
 
-                        # If multiple browsers, prefix browser-specific keys so they don't overwrite each other
-                        if [ ${browsersToTest.size()} -gt 1 ]; then
-                            awk -v prefix="\$browserName" '{
+                        if [ ${browserCount} -gt 1 ]; then
+                            awk -v prefix="$browserName" '{
                                 split(\$0,a,"=");
                                 if (a[1] ~ /^Browser/ || a[1] ~ /^Browser.Version/) {
                                     print a[1] "." prefix "=" a[2];
                                 } else {
                                     print \$0;
                                 }
-                            }' "\$dir/environment.properties" >> "\$TMP_ENV"
+                            }' "$dir/environment.properties" >> "$TMP_ENV"
                         else
-                            cat "\$dir/environment.properties" >> "\$TMP_ENV"
+                            cat "$dir/environment.properties" >> "$TMP_ENV"
                         fi
                     fi
                 done
 
-                mv "\$TMP_ENV" "${finalReportDir}/environment.properties"
+                # ✅ Always append Thread.Count and Test.Suite
+                echo "Thread.Count=${params.THREAD_COUNT}" >> "$TMP_ENV"
+                echo "Test.Suite=${params.TEST_SUITE}" >> "$TMP_ENV"
+
+                mv "$TMP_ENV" "${finalResultsDir}/environment.properties"
                 echo "Merged environment.properties:"
-                cat "${finalReportDir}/environment.properties"
+                cat "${finalResultsDir}/environment.properties"
+                """
+                sh 'chmod +x merge-env.sh && ./merge-env.sh'
+
+                // ✅ Allure report via CLI to avoid Jenkins plugin path bug
+                echo "🧪 Generating Allure Report via CLI..."
+                sh """
+                    rm -rf allure-report
+                    ${ALLURE_CMD}/bin/allure generate ${finalResultsDir} -o allure-report --clean
                 """
 
-                echo "🧪 Generating Allure Report..."
-                sh "ls -l ${finalReportDir} || true"
-                allure(
-                        results: [[path: finalReportDir]],
-                        reportBuildPolicy: 'ALWAYS'
-                )
+                // ✅ Publish generated report
+                allure includeProperties: false, jdk: '', report: 'allure-report'
             }
         }
     }
