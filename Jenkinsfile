@@ -14,6 +14,7 @@ pipeline {
     }
 
     //force multibranch to run this pipeline
+    //force multibranch to run this pipeline
     stages {
         stage('Build & Push Docker Image') {
             steps {
