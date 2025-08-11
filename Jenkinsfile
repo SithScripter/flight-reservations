@@ -1,4 +1,4 @@
-// Jenkinsfile - Simple & Final QA-Friendly Version
+// Jenkinsfile - Simple QA Version without Allure CLI
 def browsersToTest = []
 
 pipeline {
@@ -14,7 +14,6 @@ pipeline {
 
     environment {
         IMAGE_NAME = "gaumji19/flight-reservations"
-        ALLURE_CMD = tool 'Allure' // Jenkins configured Allure CLI tool
     }
 
     stages {
@@ -86,7 +85,7 @@ pipeline {
 
     post {
         always {
-            script {
+            node {
                 def finalDir = 'allure-final-results'
                 sh "rm -rf ${finalDir} && mkdir -p ${finalDir}"
 
@@ -100,14 +99,11 @@ pipeline {
                     }
                 }
 
-                // Merge environment.properties
+                // Write environment.properties
                 writeFile file: "${finalDir}/environment.properties", text: mergeEnvProps(browsersToTest)
 
-                // Generate Allure report with CLI
-                sh "${ALLURE_CMD}/bin/allure generate ${finalDir} -o allure-report --clean"
-
-                // Publish report in Jenkins
-                allure includeProperties: false, report: 'allure-report'
+                // Let Jenkins Allure plugin publish directly (no CLI)
+                allure includeProperties: false, results: [[path: finalDir]], reportBuildPolicy: 'ALWAYS'
             }
         }
     }
@@ -128,7 +124,7 @@ String mergeEnvProps(List<String> browsers) {
     if (browsers.size() > 1) {
         browsers.each { b ->
             lines << "Browser.${b}=${b.capitalize()}"
-            lines << "Browser.Version.${b}=unknown" // your test code can overwrite this
+            lines << "Browser.Version.${b}=unknown"
         }
         lines.addAll(common)
     } else {
