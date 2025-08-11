@@ -55,7 +55,6 @@ pipeline {
                     for (String browser : browsersToTest) {
                         parallelStages["Test on ${browser}"] = {
                             node {
-                                // ✅ This provides a clean, isolated workspace for each parallel run
                                 deleteDir()
                                 checkout scm
 
@@ -70,7 +69,6 @@ pipeline {
                                         docker-compose -f docker-compose.test.yml up --exit-code-from flight-reservations
                                     """
                                 } finally {
-                                    echo "Stashing Allure results from ${browser} container..."
                                     sh "mkdir -p target/allure-results-${browser}/"
                                     sh "docker cp ${projectName}-tests:/home/flight-reservations/target/allure-results/. target/allure-results-${browser}/ || true"
 
@@ -98,8 +96,7 @@ pipeline {
                 echo "🤝 Aggregating Allure results..."
 
                 def finalResultsDir = 'allure-final-results'
-                sh "rm -rf ${finalResultsDir} target"
-                sh "mkdir -p ${finalResultsDir}"
+                sh "rm -rf ${finalResultsDir} && mkdir -p ${finalResultsDir}"
 
                 for (String browser : browsersToTest) {
                     try {
@@ -140,7 +137,7 @@ pipeline {
 
                 mv "\\\$TMP_ENV" "${finalResultsDir}/environment.properties"
                 echo "Merged environment.properties:"
-                cat "${finalResultsDir}/environment.properties" || true
+                cat "${finalResultsDir}/environment.properties"
                 """
 
                 echo "🧪 Generating Allure Report via CLI..."
